@@ -1,0 +1,412 @@
+// src/stores/billiard.js
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export const useBilliardStore = defineStore('billiard', () => {
+  // 用户信息
+  const userInfo = ref(JSON.parse(localStorage.getItem('bt_user') || 'null'))
+
+  // 训练记录
+  const records = ref(JSON.parse(localStorage.getItem('bt_records') || '[]'))
+
+  // 训练计划（购物车）
+  const cart = ref(JSON.parse(localStorage.getItem('bt_cart') || '[]'))
+
+  // 计划模板
+  const planTemplates = ref(JSON.parse(localStorage.getItem('bt_plans') || '[]'))
+
+  // 学员列表
+  const students = ref(JSON.parse(localStorage.getItem('bt_students') || '[]'))
+
+  // 教练邀请码
+  const coachCode = ref(localStorage.getItem('bt_coachCode') || '')
+
+  // 当前正在训练的项目（计时用）
+  const currentTraining = ref(JSON.parse(localStorage.getItem('bt_current_training') || 'null'))
+
+  // ===== 项目广场 =====
+  // 广场项目（预设 + 用户发布的）
+  const squareProjects = ref(JSON.parse(localStorage.getItem('bt_square') || 'null') || getDefaultSquareProjects())
+
+  // 用户收藏的项目 ID 列表
+  const myFavProjects = ref(JSON.parse(localStorage.getItem('bt_fav_projects') || '[]'))
+
+  // 用户自己发布的项目 ID 列表
+  const myPublishedProjects = computed(() => squareProjects.value.filter(p => p.publisherId === userInfo.value?.id).map(p => p.id))
+
+  // 用户的项目列表（收藏的 + 自己发布的）
+  const myProjectList = computed(() => {
+    const favIds = new Set(myFavProjects.value)
+    return squareProjects.value.filter(p => favIds.has(p.id) || p.publisherId === userInfo.value?.id)
+  })
+
+  function getDefaultSquareProjects() {
+    return [
+      { id: 'sq_001', name: '中袋直线球', desc: '最基础的中袋练习，保持出杆稳定性。每次练习50杆以上，目标命中率70%。', category: 'basic', publisher: '台球达人张教练', publisherId: 'system', likes: 328, favs: 156, participants: 1243, videoUrl: '', createdAt: '2026-01-15' },
+      { id: 'sq_002', name: '五分点中袋', desc: '从五分点位置练习中袋进球，锻炼角度控制能力。', category: 'basic', publisher: '李教练', publisherId: 'system', likes: 256, favs: 98, participants: 876, videoUrl: '', createdAt: '2026-01-20' },
+      { id: 'sq_003', name: '远台薄切', desc: '远距离薄切球练习，考验出杆精准度和力度控制。建议从简单角度开始。', category: 'medium', publisher: '王教练', publisherId: 'system', likes: 189, favs: 87, participants: 654, videoUrl: '', createdAt: '2026-02-01' },
+      { id: 'sq_004', name: 'K球分离练习', desc: '练习K球后的母球走位，提高连续得分能力。', category: 'medium', publisher: '陈教练', publisherId: 'system', likes: 145, favs: 72, participants: 432, videoUrl: '', createdAt: '2026-02-05' },
+      { id: 'sq_005', name: '安全球防守', desc: '练习将母球送到安全位置，不给对手留下进球机会。', category: 'medium', publisher: '刘教练', publisherId: 'system', likes: 134, favs: 65, participants: 398, videoUrl: '', createdAt: '2026-02-10' },
+      { id: 'sq_006', name: '连续围球', desc: '斯诺克连续得分围球练习，从红黑开始尽量连续得分。', category: 'advanced', publisher: '台球达人张教练', publisherId: 'system', likes: 267, favs: 142, participants: 567, videoUrl: '', createdAt: '2026-02-15' },
+      { id: 'sq_007', name: '九球走位', desc: '九球专项走位训练，练习母球绕台走位，提高连续清台能力。', category: 'advanced', publisher: '赵教练', publisherId: 'system', likes: 198, favs: 89, participants: 445, videoUrl: '', createdAt: '2026-02-20' },
+      { id: 'sq_008', name: '高低杆进阶', desc: '高低杆精确控制练习，包括跟进球、拉回球、定球等高级杆法。', category: 'advanced', publisher: '孙教练', publisherId: 'system', likes: 176, favs: 93, participants: 523, videoUrl: '', createdAt: '2026-02-25' },
+    ]
+  }
+
+  // 训练计划历史（像外卖订单记录）
+  const planHistory = ref(JSON.parse(localStorage.getItem('bt_plan_history') || '[]'))
+
+  // ===== 计算属性 =====
+  const isLoggedIn = computed(() => !!userInfo.value)
+  const isCoach = computed(() => userInfo.value?.role === 'coach')
+
+  const todayRecords = computed(() => {
+    const today = getToday()
+    return records.value.filter(r => r.date === today)
+  })
+
+  const starredRecords = computed(() => records.value.filter(r => r.starred).sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+
+  // 我收藏的项目列表
+  const myFavList = computed(() => {
+    const favIds = new Set(myFavProjects.value)
+    return squareProjects.value.filter(p => favIds.has(p.id))
+  })
+
+  // 我发布的项目列表
+  const myPublishedList = computed(() => {
+    return squareProjects.value.filter(p => p.publisherId === userInfo.value?.id)
+  })
+
+  const todaySummary = computed(() => {
+    const today = getToday()
+    const todayRecs = records.value.filter(r => r.date === today)
+    let duration = 0, totalShots = 0, hits = 0
+    const items = new Set()
+    todayRecs.forEach(r => {
+      duration += r.duration || 0
+      totalShots += r.totalShots || 0
+      hits += r.hits || 0
+      if (r.project) items.add(r.project)
+    })
+    return {
+      duration,
+      hitRate: totalShots > 0 ? Math.round(hits / totalShots * 100) : 0,
+      items: items.size,
+      count: todayRecs.length
+    }
+  })
+
+  const weekStreak = computed(() => {
+    const dates = [...new Set(records.value.map(r => r.date))].sort().reverse()
+    if (!dates.length) return 0
+    const today = getToday()
+    const yesterday = getPrevDay(today)
+    if (dates[0] !== today && dates[0] !== yesterday) return 0
+    let streak = 0
+    let checkDate = dates[0] === today ? today : yesterday
+    for (const d of dates) {
+      if (d === checkDate) { streak++; checkDate = getPrevDay(checkDate) }
+      else break
+    }
+    return streak
+  })
+
+  // ===== 方法 =====
+  function getToday() {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }
+
+  function getPrevDay(dateStr) {
+    const d = new Date(dateStr)
+    d.setDate(d.getDate() - 1)
+    return formatDate(d)
+  }
+
+  function formatDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }
+
+  function saveLocal() {
+    localStorage.setItem('bt_user', JSON.stringify(userInfo.value))
+    localStorage.setItem('bt_records', JSON.stringify(records.value))
+    localStorage.setItem('bt_cart', JSON.stringify(cart.value))
+    localStorage.setItem('bt_plans', JSON.stringify(planTemplates.value))
+    localStorage.setItem('bt_students', JSON.stringify(students.value))
+    if (coachCode.value) localStorage.setItem('bt_coachCode', coachCode.value)
+    localStorage.setItem('bt_square', JSON.stringify(squareProjects.value))
+    localStorage.setItem('bt_fav_projects', JSON.stringify(myFavProjects.value))
+  }
+
+  // 用户
+  function setUserInfo(info) {
+    userInfo.value = info
+    saveLocal()
+  }
+
+  function logout() {
+    userInfo.value = null
+    saveLocal()
+  }
+
+  // 训练记录
+  function addRecord(record) {
+    records.value.push(record)
+    saveLocal()
+  }
+
+  function deleteRecord(id) {
+    records.value = records.value.filter(r => r.id !== id)
+    saveLocal()
+  }
+
+  function toggleStar(id) {
+    const r = records.value.find(r => r.id === id)
+    if (r) { r.starred = !r.starred; saveLocal() }
+    return r?.starred
+  }
+
+  function getRecord(id) {
+    return records.value.find(r => r.id === id)
+  }
+
+  // 购物车
+  function addToCart(item) {
+    cart.value.push(item)
+    saveLocal()
+  }
+
+  function updateCart(index, data) {
+    Object.assign(cart.value[index], data)
+    saveLocal()
+  }
+
+  function removeFromCart(index) {
+    cart.value.splice(index, 1)
+    saveLocal()
+  }
+
+  function clearCart() {
+    cart.value = []
+    saveLocal()
+  }
+
+  // 计划模板
+  function savePlan(plan) {
+    planTemplates.value.unshift(plan)
+    if (planTemplates.value.length > 20) planTemplates.value.length = 20
+    saveLocal()
+  }
+
+  // 学员
+  function addStudent(student) {
+    students.value.push(student)
+    saveLocal()
+  }
+
+  // 教练码
+  function getOrGenCoachCode() {
+    if (!coachCode.value) {
+      coachCode.value = 'COACH_' + Math.random().toString(36).substr(2, 8).toUpperCase()
+      saveLocal()
+    }
+    return coachCode.value
+  }
+
+  // 统计
+  function getStats(period) {
+    const now = new Date()
+    let filtered = records.value
+    if (period === 'week') {
+      const ago = new Date(now.getTime() - 7 * 86400000)
+      filtered = records.value.filter(r => r.date >= formatDate(ago))
+    } else if (period === 'month') {
+      const m = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`
+      filtered = records.value.filter(r => r.date >= m)
+    }
+
+    let totalDuration = 0, totalRate = 0
+    filtered.forEach(r => { totalDuration += r.duration || 0; totalRate += r.hitRate || 0 })
+
+    const projectMap = {}
+    filtered.forEach(r => {
+      if (!projectMap[r.project]) projectMap[r.project] = { name: r.project, count: 0, totalRate: 0, totalDuration: 0 }
+      projectMap[r.project].count++
+      projectMap[r.project].totalRate += r.hitRate || 0
+      projectMap[r.project].totalDuration += r.duration || 0
+    })
+
+    const projectStats = Object.values(projectMap).map(p => ({
+      ...p,
+      avgRate: p.count > 0 ? Math.round(p.totalRate / p.count) : 0
+    })).sort((a, b) => b.count - a.count)
+
+    const dateMap = {}
+    filtered.forEach(r => {
+      if (!dateMap[r.date]) dateMap[r.date] = { duration: 0, rate: 0, count: 0 }
+      dateMap[r.date].duration += r.duration
+      dateMap[r.date].rate += r.hitRate
+      dateMap[r.date].count++
+    })
+    const dates = Object.keys(dateMap).sort()
+    const hitRates = dates.map(d => dateMap[d].count > 0 ? Math.round(dateMap[d].rate / dateMap[d].count) : 0)
+
+    return {
+      totalSessions: filtered.length,
+      totalDuration,
+      avgHitRate: filtered.length > 0 ? Math.round(totalRate / filtered.length) : 0,
+      projectStats,
+      dates,
+      hitRates,
+      maxRate: Math.max(...hitRates, 1)
+    }
+  }
+
+  // Check if a project is in today's plan (cart)
+  function isInCart(projectId) {
+    return cart.value.some(item => item.projectId === projectId)
+  }
+
+  // Remove from cart by projectId
+  function removeFromCartByProjectId(projectId) {
+    const idx = cart.value.findIndex(item => item.projectId === projectId)
+    if (idx >= 0) { cart.value.splice(idx, 1); saveLocal() }
+  }
+
+  // ===== 训练计时 =====
+  function startTraining(projectId) {
+    currentTraining.value = { projectId, startTime: Date.now() }
+    localStorage.setItem('bt_current_training', JSON.stringify(currentTraining.value))
+  }
+
+  function endTraining() {
+    if (!currentTraining.value) return 0
+    const elapsed = Math.max(1, Math.round((Date.now() - currentTraining.value.startTime) / 60000))
+    currentTraining.value = null
+    localStorage.removeItem('bt_current_training')
+    return elapsed
+  }
+
+  function cancelTraining() {
+    currentTraining.value = null
+    localStorage.removeItem('bt_current_training')
+  }
+
+  function getElapsedSeconds() {
+    if (!currentTraining.value) return 0
+    return Math.floor((Date.now() - currentTraining.value.startTime) / 1000)
+  }
+
+  // ===== 训练计划历史 =====
+  function savePlanToHistory() {
+    const items = cart.value.filter(item => item.projectId)
+    if (items.length === 0) return
+    // 避免重复保存相同计划
+    const plan = {
+      id: Date.now().toString(),
+      items: items.map(item => ({ ...item })),
+      savedAt: new Date().toISOString(),
+      date: getToday()
+    }
+    planHistory.value.unshift(plan)
+    if (planHistory.value.length > 30) planHistory.value.length = 30
+    localStorage.setItem('bt_plan_history', JSON.stringify(planHistory.value))
+  }
+
+  function restorePlanFromHistory(historyId) {
+    const plan = planHistory.value.find(p => p.id === historyId)
+    if (!plan) return
+    // 清空当前计划，恢复历史计划
+    cart.value = plan.items.map(item => ({ ...item }))
+    saveLocal()
+  }
+
+  function deletePlanHistory(historyId) {
+    planHistory.value = planHistory.value.filter(p => p.id !== historyId)
+    localStorage.setItem('bt_plan_history', JSON.stringify(planHistory.value))
+  }
+
+  // Get daily metrics for stats page
+  function getDailyMetrics(date) {
+    const dayRecords = records.value.filter(r => r.date === date)
+    const todayCart = cart.value.filter(item => item.projectId)
+
+    // Plan completion
+    const completedIds = new Set()
+    dayRecords.forEach(r => {
+      if (r.projectId) completedIds.add(r.projectId)
+    })
+    const planTotal = todayCart.length
+    const planDone = todayCart.filter(item => completedIds.has(item.projectId)).length
+    const planCompletion = planTotal > 0 ? Math.round(planDone / planTotal * 100) : null
+
+    // Duration
+    const totalDuration = dayRecords.reduce((sum, r) => sum + (r.duration || 0), 0)
+
+    // Training item count
+    const projectSet = new Set(dayRecords.map(r => r.project))
+
+    // Hit rate
+    const totalShots = dayRecords.reduce((sum, r) => sum + (r.totalShots || 0), 0)
+    const totalHits = dayRecords.reduce((sum, r) => sum + (r.hits || 0), 0)
+    const hitRate = totalShots > 0 ? Math.round(totalHits / totalShots * 100) : 0
+
+    // Yesterday comparison
+    const yesterday = getPrevDay(date)
+    const yesterdayRecords = records.value.filter(r => r.date === yesterday)
+    const ydDuration = yesterdayRecords.reduce((sum, r) => sum + (r.duration || 0), 0)
+    const ydProjectSet = new Set(yesterdayRecords.map(r => r.project))
+    const ydShots = yesterdayRecords.reduce((sum, r) => sum + (r.totalShots || 0), 0)
+    const ydHits = yesterdayRecords.reduce((sum, r) => sum + (r.hits || 0), 0)
+    const ydRate = ydShots > 0 ? Math.round(ydHits / ydShots * 100) : 0
+
+    return {
+      planCompletion,
+      duration: totalDuration,
+      durationDiff: totalDuration - ydDuration,
+      projectCount: projectSet.size,
+      projectDiff: projectSet.size - ydProjectSet.size,
+      hitRate,
+      hitRateDiff: hitRate - ydRate,
+      totalSessions: dayRecords.length
+    }
+  }
+
+  return {
+    userInfo, records, cart, planTemplates, students, coachCode,
+    squareProjects, myFavProjects, myPublishedProjects, myProjectList,
+    planHistory, currentTraining,
+    isLoggedIn, isCoach, todayRecords, todaySummary, weekStreak,
+    starredRecords, myFavList, myPublishedList,
+    setUserInfo, logout, addRecord, deleteRecord, toggleStar, getRecord,
+    addToCart, updateCart, removeFromCart, clearCart,
+    isInCart, removeFromCartByProjectId,
+    startTraining, endTraining, cancelTraining, getElapsedSeconds,
+    savePlanToHistory, restorePlanFromHistory, deletePlanHistory,
+    savePlan, addStudent, getOrGenCoachCode,
+    getStats, getDailyMetrics, getToday, formatDate,
+    // 项目广场方法
+    toggleFavProject(id) {
+      const idx = myFavProjects.value.indexOf(id)
+      if (idx >= 0) { myFavProjects.value.splice(idx, 1) }
+      else { myFavProjects.value.push(id) }
+      saveLocal()
+      return myFavProjects.value.includes(id)
+    },
+    isProjectFaved(id) {
+      return myFavProjects.value.includes(id)
+    },
+    likeProject(id) {
+      const p = squareProjects.value.find(p => p.id === id)
+      if (p) { p.likes++; saveLocal() }
+    },
+    publishProject(project) {
+      squareProjects.value.unshift(project)
+      saveLocal()
+    },
+    getSquareProject(id) {
+      return squareProjects.value.find(p => p.id === id)
+    }
+  }
+})
