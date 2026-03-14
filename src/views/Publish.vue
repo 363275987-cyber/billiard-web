@@ -24,15 +24,16 @@
 
     <div class="card">
       <div class="card-title">演示视频（选填）</div>
-      <div class="video-upload" @click="pickVideo">
+      <div class="video-upload" @click="!videoPreview && pickVideo()">
         <template v-if="!videoPreview">
           <span class="upload-icon">🎬</span>
           <span class="upload-text">点击上传演示视频</span>
-          <span class="upload-hint">支持 mp4 格式，最长30秒</span>
+          <span class="upload-hint">支持 mp4 格式，最长30秒，最大 2MB</span>
         </template>
         <template v-else>
-          <span class="video-ok">✅ 视频已选择</span>
-          <span class="video-name">{{videoName}}</span>
+          <video :src="form.videoUrl" controls class="video-preview" />
+          <span class="video-name">{{videoName}} ✅</span>
+          <span class="video-remove" @click.stop="removeVideo">重新选择</span>
         </template>
       </div>
       <input type="file" ref="videoInput" accept="video/mp4" @change="onVideoChange" style="display:none" />
@@ -80,11 +81,25 @@ function pickVideo() {
 
 function onVideoChange(e) {
   const file = e.target.files?.[0]
-  if (file) {
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    alert('视频文件不能超过 2MB，请选择更短的视频')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    form.videoUrl = reader.result // base64 data URL
     videoPreview.value = true
     videoName.value = file.name
-    form.videoUrl = 'local_' + file.name
   }
+  reader.readAsDataURL(file)
+}
+
+function removeVideo() {
+  form.videoUrl = ''
+  videoPreview.value = false
+  videoName.value = ''
+  if (videoInput.value) videoInput.value.value = ''
 }
 
 function handlePublish() {
@@ -138,8 +153,10 @@ function handlePublish() {
 .upload-icon { font-size: 32px; display: block; margin-bottom: 6px; }
 .upload-text { display: block; font-size: 14px; color: #666; }
 .upload-hint { display: block; font-size: 12px; color: #b0b0b0; margin-top: 4px; }
+.video-preview { width: 100%; border-radius: 8px; margin-bottom: 8px; max-height: 200px; }
 .video-ok { display: block; font-size: 15px; color: #2ecc71; font-weight: 600; }
 .video-name { display: block; font-size: 12px; color: #b0b0b0; margin-top: 4px; }
+.video-remove { display: inline-block; font-size: 13px; color: #e74c3c; margin-top: 8px; cursor: pointer; }
 
 .desc-input {
   width: 100%; min-height: 120px; padding: 12px; font-size: 14px; line-height: 1.6;

@@ -1,168 +1,260 @@
-<!-- src/views/Training.vue - 今日训练页 -->
+<!-- src/views/Training.vue - 今日训练页（v3 实时计数器版） -->
 <template>
   <div class="page">
-    <div class="page-top">
-      <span class="page-title">📋 今日训练</span>
-      <span class="page-date">{{store.getToday()}}</span>
-    </div>
 
-    <!-- 正在训练的提示条 -->
-    <div class="training-banner" v-if="store.currentTraining">
-      <div class="banner-pulse"></div>
-      <span class="banner-text">正在训练：{{activeProjectName}}</span>
-      <span class="banner-timer">{{formatTime(elapsedSeconds)}}</span>
-    </div>
-
-    <!-- 今日训练计划列表 -->
-    <div class="section" v-if="planItems.length > 0">
-      <div class="section-title">
-        <div class="title-bar"></div>
-        <span>训练计划</span>
-        <span class="section-count">{{completedCount}}/{{planItems.length}} 完成</span>
+    <!-- ====== 全屏实时训练覆盖层 ====== -->
+    <div class="live-overlay" v-if="store.currentTraining && liveMode">
+      <div class="live-header">
+        <span class="live-project-name">{{activeProjectName}}</span>
+        <span class="live-timer" :class="elapsedSeconds >= 3600 ? 'warn' : ''">{{formatTime(elapsedSeconds)}}</span>
       </div>
-      <div class="plan-list">
-        <div class="plan-card" v-for="item in planItems" :key="item.projectId" :class="{active: store.currentTraining?.projectId === item.projectId}">
 
-          <div class="plan-left" @click="store.currentTraining?.projectId !== item.projectId && !isProjectDone(item.projectId) && handleStart(item)">
-            <div class="plan-icon" :class="item.category">
-              {{item.category === 'basic' ? '🎯' : item.category === 'medium' ? '💪' : '🔥'}}
+      <div class="live-stats">
+        <div class="live-stat">
+          <span class="live-stat-num">{{liveStats.total}}</span>
+          <span class="live-stat-label">总杆数</span>
+        </div>
+        <div class="live-stat-divider"></div>
+        <div class="live-stat">
+          <span class="live-stat-num good">{{liveStats.hits}}</span>
+          <span class="live-stat-label">命中</span>
+        </div>
+        <div class="live-stat-divider"></div>
+        <div class="live-stat">
+          <span class="live-stat-num" :class="liveStats.hitRate >= 70 ? 'good' : liveStats.hitRate >= 50 ? 'mid' : 'bad'">{{liveStats.hitRate}}%</span>
+          <span class="live-stat-label">进球率</span>
+        </div>
+      </div>
+
+      <div class="live-buttons">
+        <button class="btn-hit" @click="store.recordShot(true)">
+          <span class="btn-hit-icon">✅</span>
+          <span class="btn-hit-text">命中</span>
+          <span class="btn-hit-count" v-if="liveStats.total > 0">{{liveStats.hits}}</span>
+        </button>
+        <button class="btn-miss" @click="store.recordShot(false)">
+          <span class="btn-miss-icon">❌</span>
+          <span class="btn-miss-text">失误</span>
+          <span class="btn-miss-count" v-if="liveStats.total > 0">{{liveStats.total - liveStats.hits}}</span>
+        </button>
+      </div>
+
+      <div class="live-actions">
+        <button class="btn-undo" @click="store.undoShot()" :disabled="liveStats.total === 0">↩️ 撤销上一杆</button>
+        <button class="btn-end-live" @click="handleEndLive">🏁 结束训练</button>
+      </div>
+    </div>
+
+    <!-- ====== 正常训练页 ====== -->
+    <template v-if="!liveMode || !store.currentTraining">
+
+      <div class="page-top">
+        <span class="page-title">📋 今日训练</span>
+        <span class="page-date">{{store.getToday()}}</span>
+      </div>
+
+      <!-- 教练作业（学员视角） -->
+      <div class="section" v-if="studentHomework.length > 0 && !store.isCoach">
+        <div class="section-title">
+          <div class="title-bar" style="background:linear-gradient(180deg,#3498db,#2980b9)"></div>
+          <span>📝 教练作业</span>
+          <span class="section-count">{{studentHomework.length}}项</span>
+        </div>
+        <div class="homework-list">
+          <div class="homework-card" v-for="hw in studentHomework" :key="hw.id">
+            <div class="homework-top">
+              <span class="homework-note" v-if="hw.note">{{hw.note}}</span>
+              <span class="homework-date">{{formatDate(hw.createdAt)}}</span>
             </div>
-            <div class="plan-info">
-              <span class="plan-name">{{item.name}}</span>
-              <span class="plan-meta">
-                ⏱ 预计{{item.duration}}分钟 · 进球率{{item.targetRate}}% · {{item.rounds}}轮
+            <div class="homework-items">
+              <span class="homework-tag" v-for="(item, i) in hw.items" :key="i">
+                {{item.name || item.projectId}}
               </span>
             </div>
+            <button class="btn-load-homework" @click="loadHomeworkToCart(hw)">🛒 加入今日计划</button>
+            <button class="btn-done-homework" @click="store.completeHomework(hw.id)">✅ 标记完成</button>
           </div>
+        </div>
+      </div>
 
-          <div class="plan-right">
-            <!-- 正在训练中 -->
-            <template v-if="store.currentTraining?.projectId === item.projectId">
-              <div class="training-timer">
-                <span class="timer-icon">⏱</span>
-                <span class="timer-num">{{formatTime(elapsedSeconds)}}</span>
+      <!-- 推荐训练方案（计划为空时显示） -->
+      <div class="section" v-if="planItems.length === 0 && studentHomework.length === 0">
+        <div class="section-title">
+          <div class="title-bar" style="background:linear-gradient(180deg,#f39c12,#e67e22)"></div>
+          <span>推荐训练方案</span>
+        </div>
+        <div class="rec-grid">
+          <div class="rec-card" v-for="plan in store.recommendedPlans" :key="plan.id">
+            <span class="rec-name">{{plan.name}}</span>
+            <span class="rec-desc">{{plan.desc}}</span>
+            <span class="rec-items">{{plan.items.length}}个训练项目</span>
+            <button class="btn-load-rec" @click="handleLoadRec(plan.id)">一键加载</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 今日训练计划列表 -->
+      <div class="section" v-if="planItems.length > 0">
+        <div class="section-title">
+          <div class="title-bar"></div>
+          <span>训练计划</span>
+          <span class="section-count">{{completedCount}}/{{planItems.length}} 完成</span>
+        </div>
+        <div class="plan-list">
+          <div class="plan-card" v-for="item in planItems" :key="item.projectId">
+
+            <div class="plan-left" @click="handleStart(item)">
+              <div class="plan-icon" :class="item.category">
+                {{item.category === 'basic' ? '🎯' : item.category === 'medium' ? '💪' : '🔥'}}
               </div>
-              <button class="btn-end" @click="handleEnd(item)">结束训练</button>
-            </template>
+              <div class="plan-info">
+                <span class="plan-name">{{item.name}}</span>
+                <span class="plan-meta">
+                  ⏱ 预计{{item.duration}}分钟 · 进球率{{item.targetRate}}% · {{item.rounds}}轮
+                </span>
+              </div>
+            </div>
 
-            <!-- 已完成（可再练） -->
-            <template v-else-if="isProjectDone(item.projectId)">
-              <span class="plan-status done">✅ 已完成</span>
-              <span class="train-count" v-if="getProjectTrainCount(item.name) > 0">
-                已练{{getProjectTrainCount(item.name)}}次
+            <div class="plan-right">
+              <!-- 已完成 -->
+              <template v-if="isProjectDone(item.projectId)">
+                <span class="plan-status done">✅ 已完成</span>
+                <span class="train-count" v-if="getProjectTrainCount(item.name) > 0">
+                  已练{{getProjectTrainCount(item.name)}}次
+                </span>
+                <button class="btn-again" @click="handleStart(item)">再练</button>
+              </template>
+
+              <!-- 待训练 -->
+              <template v-else>
+                <button class="btn-start" @click="handleStart(item)" :disabled="!!store.currentTraining">
+                  开始
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 保存本次计划 -->
+      <div class="save-plan-area" v-if="planItems.length > 0">
+        <button class="btn-save-plan" @click="handleSavePlan">📌 保存本次计划</button>
+      </div>
+
+      <!-- 添加训练按钮 -->
+      <div class="add-area">
+        <button class="btn-add" @click="showAddPicker = true">+ 添加训练</button>
+      </div>
+
+      <!-- 选择项目弹层 -->
+      <div class="picker-overlay" v-if="showAddPicker" @click.self="showAddPicker = false">
+        <div class="picker-sheet">
+          <div class="picker-header">
+            <span class="picker-title">选择训练项目</span>
+            <span class="picker-close" @click="showAddPicker = false">✕</span>
+          </div>
+          <template v-if="store.myProjectList.length > 0">
+            <div class="picker-list">
+              <div class="picker-item" v-for="p in store.myProjectList" :key="p.id" @click="quickTrain(p)">
+                <span class="picker-item-name">{{p.name}}</span>
+                <span class="picker-item-cat" :class="p.category">{{categoryLabel(p.category)}}</span>
+              </div>
+            </div>
+          </template>
+          <template v-if="store.myProjectList.length === 0">
+            <div class="picker-empty">
+              <span class="picker-empty-icon">🏪</span>
+              <span class="picker-empty-text">还没有收藏项目</span>
+              <span class="picker-empty-desc">去项目广场看看吧</span>
+              <button class="btn-go-square" @click="$router.push('/square')">逛广场</button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- 今日训练记录 -->
+      <div class="section" v-if="store.todayRecords.length > 0">
+        <div class="section-title">
+          <div class="title-bar"></div>
+          <span>今日记录</span>
+          <span class="section-count">{{store.todayRecords.length}}次</span>
+        </div>
+        <div class="record-list">
+          <div class="record-card" v-for="r in store.todayRecords" :key="r.id" @click="$router.push('/detail/' + r.id)">
+            <div class="record-left">
+              <div class="record-icon" :class="r.hitRate >= 70 ? 'good' : r.hitRate >= 50 ? 'mid' : 'bad'">
+                {{r.hitRate >= 70 ? '🔥' : r.hitRate >= 50 ? '💪' : '🎯'}}
+              </div>
+              <div class="record-info">
+                <span class="record-name">{{r.project}}</span>
+                <span class="record-meta">{{r.duration}}分钟 · {{r.totalShots}}杆</span>
+              </div>
+            </div>
+            <div class="record-right">
+              <span class="record-rate" :class="r.hitRate >= 70 ? 'good' : r.hitRate >= 50 ? 'mid' : 'bad'">{{r.hitRate}}%</span>
+              <span class="card-arrow">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 教练作业（教练视角） -->
+      <div class="section" v-if="store.isCoach && coachHomework.length > 0">
+        <div class="section-title">
+          <div class="title-bar" style="background:linear-gradient(180deg,#3498db,#2980b9)"></div>
+          <span>我布置的作业</span>
+        </div>
+        <div class="homework-list">
+          <div class="homework-card" v-for="hw in coachHomework" :key="hw.id">
+            <div class="homework-top">
+              <span class="homework-note" v-if="hw.note">{{hw.note}}</span>
+              <span class="homework-status" :class="hw.completed ? 'done' : 'pending'">
+                {{hw.completed ? '✅ 已完成' : '⏳ 进行中'}}
               </span>
-              <button class="btn-again" @click="handleStart(item)">再练</button>
-            </template>
-
-            <!-- 待训练 -->
-            <template v-else>
-              <button class="btn-start" @click="handleStart(item)" :disabled="!!store.currentTraining">
-                开始
-              </button>
-            </template>
+            </div>
+            <div class="homework-student">
+              学员：{{store.getStudentById(hw.studentId)?.name || '未知'}}
+            </div>
+            <div class="homework-meta">{{formatDate(hw.createdAt)}}</div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 保存本次计划 -->
-    <div class="save-plan-area" v-if="planItems.length > 0">
-      <button class="btn-save-plan" @click="handleSavePlan">📌 保存本次计划</button>
-    </div>
-
-    <!-- 添加训练按钮 -->
-    <div class="add-area">
-      <button class="btn-add" @click="showAddPicker = true">+ 添加训练</button>
-    </div>
-
-    <!-- 选择项目弹层 -->
-    <div class="picker-overlay" v-if="showAddPicker" @click.self="showAddPicker = false">
-      <div class="picker-sheet">
-        <div class="picker-header">
-          <span class="picker-title">选择训练项目</span>
-          <span class="picker-close" @click="showAddPicker = false">✕</span>
+      <!-- 历史训练计划 -->
+      <div class="section" v-if="store.planHistory.length > 0">
+        <div class="section-title">
+          <div class="title-bar"></div>
+          <span>历史计划</span>
+          <span class="section-count">{{store.planHistory.length}}个</span>
         </div>
-
-        <template v-if="store.myProjectList.length > 0">
-          <div class="picker-list">
-            <div class="picker-item" v-for="p in store.myProjectList" :key="p.id" @click="quickTrain(p)">
-              <span class="picker-item-name">{{p.name}}</span>
-              <span class="picker-item-cat" :class="p.category">{{categoryLabel(p.category)}}</span>
+        <div class="history-list">
+          <div class="history-card" v-for="plan in store.planHistory" :key="plan.id">
+            <div class="history-top">
+              <span class="history-date">{{plan.date}}</span>
+              <span class="history-meta">{{plan.items.length}}个项目 · 共{{planTotalDuration(plan)}}分钟</span>
+            </div>
+            <div class="history-items">
+              <span class="history-tag" v-for="item in plan.items.slice(0, 5)" :key="item.projectId">
+                {{item.name}}
+              </span>
+              <span class="history-tag more" v-if="plan.items.length > 5">+{{plan.items.length - 5}}</span>
+            </div>
+            <div class="history-actions">
+              <button class="btn-reorder" @click="handleRestore(plan.id)">🔄 再来一次</button>
+              <button class="btn-delete-history" @click="handleDeleteHistory(plan.id)">删除</button>
             </div>
           </div>
-        </template>
-
-        <template v-if="store.myProjectList.length === 0">
-          <div class="picker-empty">
-            <span class="picker-empty-icon">🏪</span>
-            <span class="picker-empty-text">还没有收藏项目</span>
-            <span class="picker-empty-desc">去项目广场看看吧</span>
-            <button class="btn-go-square" @click="$router.push('/square')">逛广场</button>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <!-- 今日训练记录 -->
-    <div class="section" v-if="store.todayRecords.length > 0">
-      <div class="section-title">
-        <div class="title-bar"></div>
-        <span>今日记录</span>
-        <span class="section-count">{{store.todayRecords.length}}次</span>
-      </div>
-      <div class="record-list">
-        <div class="record-card" v-for="r in store.todayRecords" :key="r.id" @click="$router.push('/detail/' + r.id)">
-          <div class="record-left">
-            <div class="record-icon" :class="r.hitRate >= 70 ? 'good' : r.hitRate >= 50 ? 'mid' : 'bad'">
-              {{r.hitRate >= 70 ? '🔥' : r.hitRate >= 50 ? '💪' : '🎯'}}
-            </div>
-            <div class="record-info">
-              <span class="record-name">{{r.project}}</span>
-              <span class="record-meta">{{r.duration}}分钟 · {{r.totalShots}}杆</span>
-            </div>
-          </div>
-          <div class="record-right">
-            <span class="record-rate" :class="r.hitRate >= 70 ? 'good' : r.hitRate >= 50 ? 'mid' : 'bad'">{{r.hitRate}}%</span>
-            <span class="card-arrow">›</span>
-          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 历史训练计划（像外卖历史订单） -->
-    <div class="section" v-if="store.planHistory.length > 0">
-      <div class="section-title">
-        <div class="title-bar"></div>
-        <span>历史计划</span>
-        <span class="section-count">{{store.planHistory.length}}个</span>
+      <!-- 空状态 -->
+      <div class="empty-card" v-if="planItems.length === 0 && store.todayRecords.length === 0 && studentHomework.length === 0">
+        <div class="empty-icon">📋</div>
+        <span class="empty-text">今天还没有训练计划</span>
+        <span class="empty-desc">选择推荐方案，或去项目广场挑选</span>
+        <button class="btn-primary" style="margin-top:16px;" @click="$router.push('/square')">逛广场</button>
       </div>
-      <div class="history-list">
-        <div class="history-card" v-for="plan in store.planHistory" :key="plan.id">
-          <div class="history-top">
-            <span class="history-date">{{plan.date}}</span>
-            <span class="history-meta">{{plan.items.length}}个项目 · 共{{planTotalDuration(plan)}}分钟</span>
-          </div>
-          <div class="history-items">
-            <span class="history-tag" v-for="item in plan.items.slice(0, 5)" :key="item.projectId">
-              {{item.name}}
-            </span>
-            <span class="history-tag more" v-if="plan.items.length > 5">+{{plan.items.length - 5}}</span>
-          </div>
-          <div class="history-actions">
-            <button class="btn-reorder" @click="handleRestore(plan.id)">🔄 再来一次</button>
-            <button class="btn-delete-history" @click="handleDeleteHistory(plan.id)">删除</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 空状态 -->
-    <div class="empty-card" v-if="planItems.length === 0 && store.todayRecords.length === 0">
-      <div class="empty-icon">📋</div>
-      <span class="empty-text">今天还没有训练计划</span>
-      <span class="empty-desc">点上方「+ 添加训练」或去项目广场挑选</span>
-      <button class="btn-primary" style="margin-top:16px;" @click="$router.push('/square')">逛广场</button>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -174,6 +266,7 @@ import { useBilliardStore } from '../stores/billiard'
 const store = useBilliardStore()
 const router = useRouter()
 const showAddPicker = ref(false)
+const liveMode = ref(false)
 
 // 计时器
 const elapsedSeconds = ref(0)
@@ -185,6 +278,12 @@ function formatTime(seconds) {
   const s = seconds % 60
   if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+}
+
+function formatDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return store.formatDate(d)
 }
 
 function startTimer() {
@@ -203,21 +302,22 @@ function stopTimer() {
 const planItems = computed(() => store.cart.filter(item => item.projectId))
 
 const completedCount = computed(() => {
-  const doneNames = new Set(store.todayRecords.map(r => r.project))
-  return planItems.value.filter(item => doneNames.has(item.name)).length
+  const doneIds = new Set(store.todayRecords.map(r => r.projectId))
+  return planItems.value.filter(item => doneIds.has(item.projectId)).length
 })
 
 // 当前训练的项目名
 const activeProjectName = computed(() => {
   if (!store.currentTraining) return ''
   const item = planItems.value.find(i => i.projectId === store.currentTraining.projectId)
-  return item ? item.name : ''
+  return item ? item.name : '训练中'
 })
 
+// 实时统计
+const liveStats = computed(() => store.getLiveStats())
+
 function isProjectDone(projectId) {
-  const item = planItems.value.find(i => i.projectId === projectId)
-  if (!item) return false
-  return store.todayRecords.some(r => r.project === item.name)
+  return store.todayRecords.some(r => r.projectId === projectId)
 }
 
 function getProjectTrainCount(projectName) {
@@ -228,25 +328,68 @@ function categoryLabel(cat) {
   return { basic: '基础', medium: '进阶', advanced: '高级' }[cat] || cat
 }
 
+// ===== 训练操作 =====
 function handleStart(item) {
-  if (store.currentTraining && store.currentTraining.projectId !== item.projectId) {
+  if (store.currentTraining) {
     if (!confirm('当前正在训练其他项目，要切换吗？')) return
     store.cancelTraining()
+    liveMode.value = false
   }
+  liveMode.value = true
   store.startTraining(item.projectId)
   startTimer()
 }
 
-function handleEnd(item) {
-  if (!confirm(`结束「${item.name}」训练？已用时 ${formatTime(elapsedSeconds.value)}`)) return
+function handleEndLive() {
+  if (!confirm(`结束「${activeProjectName.value}」训练？已用时 ${formatTime(elapsedSeconds.value)}`)) return
   stopTimer()
-  const elapsedMinutes = store.endTraining()
-  router.push('/record?projectId=' + item.projectId + '&from=training&duration=' + elapsedMinutes)
+  const result = store.endTraining()
+  liveMode.value = false
+  if (result) {
+    const params = new URLSearchParams({
+      projectId: result.projectId,
+      from: 'training',
+      duration: String(result.elapsed),
+      shots: String(result.shots),
+      hits: String(result.hits),
+      hitRate: String(result.hitRate)
+    })
+    router.push('/record?' + params.toString())
+  } else {
+    router.push('/training')
+  }
 }
 
 function quickTrain(project) {
   showAddPicker.value = false
   router.push('/record?projectId=' + project.id + '&from=training')
+}
+
+// ===== 推荐方案 =====
+function handleLoadRec(planId) {
+  store.loadRecommendedPlan(planId)
+}
+
+// ===== 教练作业 =====
+const studentHomework = computed(() => store.getStudentHomework())
+const coachHomework = computed(() => store.getCoachHomework())
+
+function loadHomeworkToCart(hw) {
+  hw.items.forEach(item => {
+    if (!store.isInCart(item.projectId || item.id)) {
+      const project = store.getSquareProject(item.projectId || item.id)
+      if (project) {
+        store.addToCart({
+          projectId: project.id,
+          name: project.name,
+          category: project.category,
+          duration: item.duration || 30,
+          rounds: item.rounds || 3,
+          targetRate: item.targetRate || 60
+        })
+      }
+    }
+  })
 }
 
 function handleSavePlan() {
@@ -271,7 +414,10 @@ function planTotalDuration(plan) {
 }
 
 onMounted(() => {
-  if (store.currentTraining) startTimer()
+  if (store.currentTraining) {
+    liveMode.value = true
+    startTimer()
+  }
 })
 
 onUnmounted(() => { stopTimer() })
@@ -283,21 +429,134 @@ onUnmounted(() => { stopTimer() })
 .page-title { font-size: 22px; font-weight: 800; color: #1a1a2e; }
 .page-date { font-size: 13px; color: #b0b0b0; }
 
-/* 训练中提示条 */
-.training-banner {
-  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-  background: linear-gradient(135deg, #2ecc71, #27ae60); border-radius: 12px;
-  margin-bottom: 12px; position: relative; overflow: hidden;
+/* ====== 全屏实时训练覆盖层 ====== */
+.live-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000;
+  background: linear-gradient(160deg, #1a1a2e 0%, #2c3e50 100%);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px; max-width: 480px; margin: 0 auto;
 }
-.banner-pulse {
-  position: absolute; top: 0; left: -100%; width: 200%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-  animation: pulse 2s infinite;
+.live-header {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 0 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-@keyframes pulse { from { transform: translateX(-50%); } to { transform: translateX(50%); } }
-.banner-text { font-size: 14px; font-weight: 600; color: #fff; position: relative; flex: 1; }
-.banner-timer { font-size: 18px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; position: relative; }
+.live-project-name { font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.9); }
+.live-timer {
+  font-size: 28px; font-weight: 800; color: #2ecc71;
+  font-variant-numeric: tabular-nums; letter-spacing: 1px;
+}
+.live-timer.warn { color: #f39c12; }
 
+.live-stats {
+  display: flex; align-items: center; gap: 0; width: 100%;
+  background: rgba(255,255,255,0.06); border-radius: 16px;
+  padding: 24px 0; margin: 24px 0;
+}
+.live-stat { flex: 1; text-align: center; }
+.live-stat-num { display: block; font-size: 36px; font-weight: 800; color: #fff; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.live-stat-num.good { color: #2ecc71; }
+.live-stat-num.mid { color: #ff6b35; }
+.live-stat-num.bad { color: #e74c3c; }
+.live-stat-label { display: block; font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 6px; }
+.live-stat-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+
+.live-buttons {
+  display: flex; gap: 16px; width: 100%; flex: 1; min-height: 0;
+  padding: 20px 0;
+}
+.btn-hit, .btn-miss {
+  flex: 1; border: none; border-radius: 16px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; transition: all 0.15s; min-height: 140px;
+  position: relative; overflow: hidden;
+}
+.btn-hit {
+  background: linear-gradient(160deg, #2ecc71, #27ae60);
+  box-shadow: 0 8px 24px rgba(46,204,113,0.4);
+}
+.btn-hit:active { transform: scale(0.96); box-shadow: 0 4px 12px rgba(46,204,113,0.3); }
+.btn-miss {
+  background: linear-gradient(160deg, #e74c3c, #c0392b);
+  box-shadow: 0 8px 24px rgba(231,76,60,0.4);
+}
+.btn-miss:active { transform: scale(0.96); box-shadow: 0 4px 12px rgba(231,76,60,0.3); }
+
+.btn-hit-icon, .btn-miss-icon { font-size: 36px; }
+.btn-hit-text { font-size: 18px; font-weight: 700; color: #fff; }
+.btn-miss-text { font-size: 18px; font-weight: 700; color: #fff; }
+.btn-hit-count { font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.7); position: absolute; top: 12px; right: 14px; }
+.btn-miss-count { font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.7); position: absolute; top: 12px; right: 14px; }
+
+.live-actions {
+  width: 100%; display: flex; gap: 12px; padding: 16px 0; padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.btn-undo {
+  flex: 1; padding: 16px; border: 2px solid rgba(255,255,255,0.15); border-radius: 12px;
+  background: transparent; color: rgba(255,255,255,0.6); font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-undo:active { background: rgba(255,255,255,0.06); }
+.btn-undo:disabled { opacity: 0.3; cursor: default; }
+.btn-end-live {
+  flex: 2; padding: 16px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff;
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(243,156,18,0.4); transition: all 0.2s;
+}
+.btn-end-live:active { opacity: 0.9; }
+
+/* ====== 推荐方案 ====== */
+.rec-grid { display: flex; flex-direction: column; gap: 10px; }
+.rec-card {
+  background: #fff; border-radius: 12px; padding: 16px; position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden;
+}
+.rec-card::before {
+  content: ''; position: absolute; top: -15px; right: -15px;
+  width: 60px; height: 60px; border-radius: 50%; opacity: 0.08;
+  background: #f39c12;
+}
+.rec-name { display: block; font-size: 17px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.rec-desc { display: block; font-size: 13px; color: #b0b0b0; margin-bottom: 4px; }
+.rec-items { display: block; font-size: 12px; color: #999; margin-bottom: 12px; }
+.btn-load-rec {
+  width: 100%; padding: 11px 0; border: none; border-radius: 8px;
+  background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(243,156,18,0.3);
+}
+.btn-load-rec:active { opacity: 0.85; }
+
+/* ====== 教练作业 ====== */
+.homework-list { display: flex; flex-direction: column; gap: 10px; }
+.homework-card {
+  background: #fff; border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #3498db;
+}
+.homework-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.homework-note { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+.homework-status { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 10px; }
+.homework-status.done { background: rgba(46,204,113,0.12); color: #27ae60; }
+.homework-status.pending { background: rgba(243,156,18,0.12); color: #e67e22; }
+.homework-date { font-size: 12px; color: #b0b0b0; }
+.homework-student { font-size: 13px; color: #666; margin-bottom: 4px; }
+.homework-items { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.homework-tag {
+  padding: 4px 10px; background: rgba(52,152,219,0.08); border-radius: 10px;
+  font-size: 12px; color: #3498db; font-weight: 500;
+}
+.homework-meta { font-size: 11px; color: #ccc; }
+.btn-load-homework {
+  width: 100%; padding: 9px 0; margin-top: 8px; border: none; border-radius: 8px;
+  background: linear-gradient(135deg, #3498db, #2980b9); color: #fff;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-done-homework {
+  width: 100%; padding: 9px 0; margin-top: 6px; border: 1px solid #2ecc71; border-radius: 8px;
+  background: #fff; color: #27ae60; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+
+/* ====== 通用样式 ====== */
 .section { margin-bottom: 16px; }
 .section-title {
   display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700;
@@ -306,16 +565,10 @@ onUnmounted(() => { stopTimer() })
 .title-bar { width: 4px; height: 18px; background: linear-gradient(180deg, #2ecc71, #27ae60); border-radius: 2px; }
 .section-count { font-size: 12px; color: #b0b0b0; font-weight: 500; margin-left: auto; }
 
-/* 计划列表 */
 .plan-list { display: flex; flex-direction: column; gap: 8px; }
 .plan-card {
   background: #fff; border-radius: 12px; padding: 14px 16px; display: flex;
   justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  transition: all 0.2s; border-left: 4px solid transparent;
-}
-.plan-card.active {
-  border-left-color: #2ecc71; background: rgba(46,204,113,0.03);
-  box-shadow: 0 2px 12px rgba(46,204,113,0.12);
 }
 .plan-left { display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer; }
 .plan-icon {
@@ -327,52 +580,36 @@ onUnmounted(() => { stopTimer() })
 .plan-icon.advanced { background: rgba(231,76,60,0.1); }
 .plan-name { display: block; font-size: 15px; font-weight: 600; color: #1a1a2e; }
 .plan-meta { display: block; font-size: 12px; color: #b0b0b0; margin-top: 2px; }
-
 .plan-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-/* 开始按钮 */
 .btn-start {
   padding: 8px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
   cursor: pointer; background: linear-gradient(135deg, #2ecc71, #27ae60); color: #fff;
-  box-shadow: 0 2px 8px rgba(46,204,113,0.3); transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(46,204,113,0.3);
 }
 .btn-start:active { opacity: 0.85; }
 .btn-start:disabled { background: #f0f0f0; color: #ccc; box-shadow: none; cursor: default; }
-
-/* 结束按钮 */
-.btn-end {
-  padding: 8px 16px; border: 2px solid #e74c3c; border-radius: 8px; font-size: 14px; font-weight: 700;
-  cursor: pointer; background: #fff; color: #e74c3c; transition: all 0.2s;
-}
-.btn-end:active { background: rgba(231,76,60,0.06); }
-
-/* 再练按钮 */
 .btn-again {
   padding: 6px 14px; border: 1px solid #2ecc71; border-radius: 8px; font-size: 13px; font-weight: 600;
-  cursor: pointer; background: #fff; color: #27ae60; transition: all 0.2s;
+  cursor: pointer; background: #fff; color: #27ae60;
 }
-.btn-again:active { background: rgba(46,204,113,0.06); }
-
-/* 训练中计时 */
-.training-timer {
-  display: flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums;
-}
-.timer-icon { font-size: 16px; }
-.timer-num { font-size: 16px; font-weight: 800; color: #2ecc71; }
-
-/* 已完成状态 */
 .plan-status { font-size: 13px; font-weight: 600; }
 .plan-status.done { color: #2ecc71; }
 .train-count { font-size: 11px; color: #b0b0b0; }
 
-/* 添加按钮 */
 .add-area { padding: 8px 0 16px; }
 .btn-add {
   width: 100%; padding: 13px 0; border: 2px dashed #2ecc71; border-radius: 10px;
   background: rgba(46,204,113,0.04); color: #27ae60; font-size: 15px; font-weight: 600;
-  cursor: pointer; transition: all 0.2s;
+  cursor: pointer;
 }
 .btn-add:active { background: rgba(46,204,113,0.1); }
+
+.save-plan-area { padding: 4px 0 12px; text-align: center; }
+.btn-save-plan {
+  padding: 10px 28px; border: 2px solid #2ecc71; border-radius: 10px;
+  background: #fff; color: #27ae60; font-size: 14px; font-weight: 600; cursor: pointer;
+}
 
 /* 弹层 */
 .picker-overlay {
@@ -400,7 +637,6 @@ onUnmounted(() => { stopTimer() })
 .picker-item-cat.basic { background: rgba(46,204,113,0.12); color: #27ae60; }
 .picker-item-cat.medium { background: rgba(255,107,53,0.12); color: #e55a2b; }
 .picker-item-cat.advanced { background: rgba(231,76,60,0.12); color: #e74c3c; }
-
 .picker-empty { text-align: center; padding: 40px 24px; }
 .picker-empty-icon { font-size: 40px; display: block; margin-bottom: 8px; }
 .picker-empty-text { display: block; font-size: 16px; font-weight: 600; color: #333; }
@@ -410,7 +646,6 @@ onUnmounted(() => { stopTimer() })
   color: #fff; border: none; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer;
 }
 
-/* 今日记录 */
 .record-list { display: flex; flex-direction: column; gap: 8px; }
 .record-card {
   background: #fff; border-radius: 12px; padding: 14px 16px; display: flex;
@@ -431,22 +666,13 @@ onUnmounted(() => { stopTimer() })
 .record-rate.good { color: #2ecc71; }
 .record-rate.mid { color: #ff6b35; }
 .record-rate.bad { color: #e74c3c; }
+.card-arrow { font-size: 18px; color: #ddd; }
 
-/* 空状态 */
 .empty-card { text-align: center; padding: 60px 24px; }
 .empty-icon { font-size: 50px; margin-bottom: 12px; display: block; }
 .empty-text { display: block; font-size: 17px; font-weight: 600; color: #333; }
 .empty-desc { display: block; font-size: 13px; color: #b0b0b0; margin-top: 6px; }
 
-/* 保存计划按钮 */
-.save-plan-area { padding: 4px 0 12px; text-align: center; }
-.btn-save-plan {
-  padding: 10px 28px; border: 2px solid #2ecc71; border-radius: 10px;
-  background: #fff; color: #27ae60; font-size: 14px; font-weight: 600; cursor: pointer;
-}
-.btn-save-plan:active { background: rgba(46,204,113,0.06); }
-
-/* 历史计划 */
 .history-list { display: flex; flex-direction: column; gap: 10px; }
 .history-card {
   background: #fff; border-radius: 12px; padding: 14px 16px;
@@ -466,10 +692,8 @@ onUnmounted(() => { stopTimer() })
   padding: 7px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
   cursor: pointer; background: linear-gradient(135deg, #2ecc71, #27ae60); color: #fff;
 }
-.btn-reorder:active { opacity: 0.85; }
 .btn-delete-history {
   padding: 7px 12px; border: none; border-radius: 8px; font-size: 13px;
   cursor: pointer; background: #f5f5f5; color: #b0b0b0;
 }
-.btn-delete-history:active { background: #f0f0f0; }
 </style>

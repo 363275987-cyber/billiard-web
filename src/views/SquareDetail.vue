@@ -47,10 +47,7 @@
     <!-- 演示视频 -->
     <div class="card" v-if="project.videoUrl">
       <div class="card-title">🎥 演示视频</div>
-      <div class="video-placeholder">
-        <span class="video-icon">▶️</span>
-        <span class="video-text">点击播放演示视频</span>
-      </div>
+      <video :src="project.videoUrl" controls playsinline class="detail-video" />
     </div>
 
     <!-- 加入训练计划 -->
@@ -222,6 +219,8 @@ function goTrain() {
 .fav-btn.faved { background: rgba(243,156,18,0.1); color: #f39c12; }
 
 .detail-desc { font-size: 14px; line-height: 1.8; color: #555; }
+
+.detail-video { width: 100%; border-radius: 10px; max-height: 240px; background: #000; }
 
 .video-placeholder { background: #f5f5f5; border-radius: 10px; padding: 40px; text-align: center; cursor: pointer; }
 .video-icon { font-size: 40px; display: block; margin-bottom: 8px; }

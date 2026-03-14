@@ -24,6 +24,12 @@ export const useBilliardStore = defineStore('billiard', () => {
   // 当前正在训练的项目（计时用）
   const currentTraining = ref(JSON.parse(localStorage.getItem('bt_current_training') || 'null'))
 
+  // 训练中实时击球计数
+  const liveShots = ref([])
+
+  // 教练作业
+  const homework = ref(JSON.parse(localStorage.getItem('bt_homework') || '[]'))
+
   // ===== 项目广场 =====
   // 广场项目（预设 + 用户发布的）
   const squareProjects = ref(JSON.parse(localStorage.getItem('bt_square') || 'null') || getDefaultSquareProjects())
@@ -52,6 +58,40 @@ export const useBilliardStore = defineStore('billiard', () => {
       { id: 'sq_008', name: '高低杆进阶', desc: '高低杆精确控制练习，包括跟进球、拉回球、定球等高级杆法。', category: 'advanced', publisher: '孙教练', publisherId: 'system', likes: 176, favs: 93, participants: 523, videoUrl: '', createdAt: '2026-02-25' },
     ]
   }
+
+  // ===== 推荐训练方案 =====
+  const recommendedPlans = [
+    {
+      id: 'rec_beginner',
+      name: '🎯 新手入门',
+      desc: '适合刚开始学台球的朋友，从中袋基础练起',
+      items: [
+        { projectId: 'sq_001', duration: 30, rounds: 3, targetRate: 50 },
+        { projectId: 'sq_002', duration: 20, rounds: 2, targetRate: 40 },
+        { projectId: 'sq_005', duration: 15, rounds: 2, targetRate: 30 }
+      ]
+    },
+    {
+      id: 'rec_improve',
+      name: '💪 进阶提升',
+      desc: '有基础，想稳步提高中远台能力',
+      items: [
+        { projectId: 'sq_003', duration: 30, rounds: 3, targetRate: 50 },
+        { projectId: 'sq_004', duration: 20, rounds: 2, targetRate: 40 },
+        { projectId: 'sq_005', duration: 20, rounds: 2, targetRate: 40 }
+      ]
+    },
+    {
+      id: 'rec_advanced',
+      name: '🔥 高手突破',
+      desc: '追求更高水平，挑战连续得分',
+      items: [
+        { projectId: 'sq_006', duration: 30, rounds: 3, targetRate: 60 },
+        { projectId: 'sq_007', duration: 30, rounds: 3, targetRate: 60 },
+        { projectId: 'sq_008', duration: 20, rounds: 2, targetRate: 50 }
+      ]
+    }
+  ]
 
   // 训练计划历史（像外卖订单记录）
   const planHistory = ref(JSON.parse(localStorage.getItem('bt_plan_history') || '[]'))
@@ -277,15 +317,18 @@ export const useBilliardStore = defineStore('billiard', () => {
   // ===== 训练计时 =====
   function startTraining(projectId) {
     currentTraining.value = { projectId, startTime: Date.now() }
+    liveShots.value = []
     localStorage.setItem('bt_current_training', JSON.stringify(currentTraining.value))
   }
 
   function endTraining() {
-    if (!currentTraining.value) return 0
+    if (!currentTraining.value) return null
     const elapsed = Math.max(1, Math.round((Date.now() - currentTraining.value.startTime) / 60000))
+    const projectId = currentTraining.value.projectId
+    const stats = getLiveStats()
     currentTraining.value = null
     localStorage.removeItem('bt_current_training')
-    return elapsed
+    return { elapsed, projectId, shots: stats.total, hits: stats.hits, hitRate: stats.hitRate }
   }
 
   function cancelTraining() {
@@ -373,16 +416,108 @@ export const useBilliardStore = defineStore('billiard', () => {
     }
   }
 
+  // ===== 实时击球计数 =====
+  function recordShot(hit) {
+    liveShots.value.push({ hit, time: Date.now() })
+  }
+
+  function undoShot() {
+    if (liveShots.value.length > 0) liveShots.value.pop()
+  }
+
+  function getLiveStats() {
+    const total = liveShots.value.length
+    const hits = liveShots.value.filter(s => s.hit).length
+    return { total, hits, hitRate: total > 0 ? Math.round(hits / total * 100) : 0 }
+  }
+
+  function clearLiveShots() {
+    liveShots.value = []
+  }
+
+  // ===== 推荐方案一键加载 =====
+  function loadRecommendedPlan(planId) {
+    const plan = recommendedPlans.find(p => p.id === planId)
+    if (!plan) return
+    cart.value = []
+    plan.items.forEach(item => {
+      const project = squareProjects.value.find(p => p.id === item.projectId)
+      if (project) {
+        cart.value.push({
+          projectId: project.id,
+          name: project.name,
+          category: project.category,
+          duration: item.duration,
+          rounds: item.rounds,
+          targetRate: item.targetRate
+        })
+      }
+    })
+    plan.items.forEach(item => {
+      if (!myFavProjects.value.includes(item.projectId)) {
+        myFavProjects.value.push(item.projectId)
+      }
+    })
+    saveLocal()
+  }
+
+  // ===== 教练作业系统 =====
+  function assignHomework(studentId, items, note) {
+    homework.value.unshift({
+      id: Date.now().toString(),
+      coachId: userInfo.value?.id,
+      studentId,
+      items: items.map(item => ({ ...item })),
+      note: note || '',
+      createdAt: new Date().toISOString(),
+      completed: false,
+      completedAt: null
+    })
+    localStorage.setItem('bt_homework', JSON.stringify(homework.value))
+  }
+
+  function getStudentHomework() {
+    if (!userInfo.value) return []
+    return homework.value.filter(h => h.studentId === userInfo.value.id && !h.completed)
+  }
+
+  function getCoachHomework() {
+    if (!userInfo.value) return []
+    return homework.value.filter(h => h.coachId === userInfo.value.id)
+  }
+
+  function completeHomework(homeworkId) {
+    const h = homework.value.find(h => h.id === homeworkId)
+    if (h) {
+      h.completed = true
+      h.completedAt = new Date().toISOString()
+      localStorage.setItem('bt_homework', JSON.stringify(homework.value))
+    }
+  }
+
+  function deleteHomework(homeworkId) {
+    homework.value = homework.value.filter(h => h.id !== homeworkId)
+    localStorage.setItem('bt_homework', JSON.stringify(homework.value))
+  }
+
+  // 获取学员信息
+  function getStudentById(studentId) {
+    return students.value.find(s => s.id === studentId)
+  }
+
   return {
     userInfo, records, cart, planTemplates, students, coachCode,
     squareProjects, myFavProjects, myPublishedProjects, myProjectList,
-    planHistory, currentTraining,
+    planHistory, currentTraining, liveShots, homework, recommendedPlans,
     isLoggedIn, isCoach, todayRecords, todaySummary, weekStreak,
     starredRecords, myFavList, myPublishedList,
     setUserInfo, logout, addRecord, deleteRecord, toggleStar, getRecord,
     addToCart, updateCart, removeFromCart, clearCart,
     isInCart, removeFromCartByProjectId,
     startTraining, endTraining, cancelTraining, getElapsedSeconds,
+    recordShot, undoShot, getLiveStats, clearLiveShots,
+    loadRecommendedPlan,
+    assignHomework, getStudentHomework, getCoachHomework, completeHomework, deleteHomework, getStudentById,
     savePlanToHistory, restorePlanFromHistory, deletePlanHistory,
     savePlan, addStudent, getOrGenCoachCode,
     getStats, getDailyMetrics, getToday, formatDate,

@@ -122,6 +122,20 @@ onMounted(() => {
     duration.value = parseInt(durationParam) || 60
     isActualTime.value = true
   }
+  // 从实时计数器自动填入数据
+  const shotsParam = route.query.shots
+  if (shotsParam) {
+    totalShots.value = parseInt(shotsParam) || 50
+  }
+  const hitsParam = route.query.hits
+  if (hitsParam) {
+    hits.value = parseInt(hitsParam) || 0
+    calcHitRate()
+  }
+  const hitRateParam = route.query.hitRate
+  if (hitRateParam && !hitsParam) {
+    hitRate.value = parseInt(hitRateParam) || 0
+  }
 })
 
 function calcHitRate() {
