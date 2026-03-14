@@ -242,10 +242,11 @@ onMounted(() => {
       selectedProjectId.value = project.id
     }
   }
-  // 从训练结束带过来的实际时长
+  // 从训练结束带过来的实际时长（吸附到滑块步长）
   const durationParam = route.query.duration
   if (durationParam) {
-    duration.value = parseInt(durationParam) || 60
+    const raw = parseInt(durationParam) || 60
+    duration.value = Math.max(5, Math.min(300, Math.round(raw / 5) * 5))
     isActualTime.value = true
   }
   // 从实时计数器自动填入数据
@@ -265,12 +266,16 @@ onMounted(() => {
 })
 
 function calcHitRate() {
+  if (totalShots.value > 0 && hits.value > totalShots.value) {
+    hits.value = totalShots.value
+  }
   hitRate.value = totalShots.value > 0 ? Math.round(hits.value / totalShots.value * 100) : 0
 }
 
 function quickHit(percent) {
   hits.value = Math.round(totalShots.value * percent / 100)
-  hitRate.value = percent
+  if (hits.value > totalShots.value) hits.value = totalShots.value
+  calcHitRate()
 }
 
 function saveRecord() {

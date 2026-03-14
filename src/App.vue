@@ -28,7 +28,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const hideOn = ['/detail']
+const hideOn = ['/detail', '/record', '/square-detail', '/my-projects', '/my-starred', '/publish', '/plan']
 const showTabBar = computed(() => !hideOn.some(p => route.path.startsWith(p)))
 </script>
 
@@ -41,8 +41,8 @@ const showTabBar = computed(() => !hideOn.some(p => route.path.startsWith(p)))
   display: flex;
   background: #fff;
   border-top: 1px solid #f0f0f0;
-  padding: 8rpx 0;
-  padding-bottom: max(8rpx, env(safe-area-inset-bottom));
+  padding: 4px 0;
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
   z-index: 999;
 }
 
@@ -51,11 +51,11 @@ const showTabBar = computed(() => !hideOn.some(p => route.path.startsWith(p)))
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4rpx;
+  gap: 2px;
   text-decoration: none;
-  padding: 12rpx 0;
+  padding: 8px 0;
   color: #b0b0b0;
-  font-size: 22rpx;
+  font-size: 11px;
   transition: color 0.2s;
 }
 
@@ -64,6 +64,6 @@ const showTabBar = computed(() => !hideOn.some(p => route.path.startsWith(p)))
 }
 
 .tab-icon {
-  font-size: 40rpx;
+  font-size: 20px;
 }
 </style>

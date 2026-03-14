@@ -142,7 +142,7 @@ import { getFile } from '../utils/mediaStore'
 const store = useBilliardStore()
 const route = useRoute()
 const router = useRouter()
-const liked = ref(false)
+const liked = ref(localStorage.getItem('bt_liked_' + route.params.id) === 'true')
 const viewingImage = ref(null)
 
 // 媒体资源
@@ -209,6 +209,7 @@ function viewImage(index) {
 function handleLike() {
   if (liked.value) return
   liked.value = true
+  localStorage.setItem('bt_liked_' + project.value.id, 'true')
   store.likeProject(project.value.id)
 }
 

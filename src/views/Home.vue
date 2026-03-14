@@ -99,7 +99,7 @@
           <div class="empty-illustration">🎯</div>
           <span class="empty-main">今天还没有训练记录</span>
           <span class="empty-desc">坚持训练，持续进步</span>
-          <button class="btn-primary" style="margin-top:20px;" @click="$router.push('/record')">开始训练</button>
+          <button class="btn-primary" style="margin-top:20px;" @click="$router.push('/record?from=training')">开始训练</button>
         </div>
       </div>
 

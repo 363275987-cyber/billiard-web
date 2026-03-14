@@ -305,36 +305,38 @@ export const useBilliardStore = defineStore('billiard', () => {
       filtered = records.value.filter(r => r.date >= m)
     }
 
-    let totalDuration = 0, totalRate = 0
-    filtered.forEach(r => { totalDuration += r.duration || 0; totalRate += r.hitRate || 0 })
+    let totalDuration = 0, totalShotsAll = 0, totalHitsAll = 0
+    filtered.forEach(r => { totalDuration += r.duration || 0; totalShotsAll += r.totalShots || 0; totalHitsAll += r.hits || 0 })
 
     const projectMap = {}
     filtered.forEach(r => {
-      if (!projectMap[r.project]) projectMap[r.project] = { name: r.project, count: 0, totalRate: 0, totalDuration: 0 }
+      if (!projectMap[r.project]) projectMap[r.project] = { name: r.project, count: 0, totalShots: 0, totalHits: 0, totalDuration: 0 }
       projectMap[r.project].count++
-      projectMap[r.project].totalRate += r.hitRate || 0
+      projectMap[r.project].totalShots += r.totalShots || 0
+      projectMap[r.project].totalHits += r.hits || 0
       projectMap[r.project].totalDuration += r.duration || 0
     })
 
     const projectStats = Object.values(projectMap).map(p => ({
       ...p,
-      avgRate: p.count > 0 ? Math.round(p.totalRate / p.count) : 0
+      avgRate: p.totalShots > 0 ? Math.round(p.totalHits / p.totalShots * 100) : 0
     })).sort((a, b) => b.count - a.count)
 
     const dateMap = {}
     filtered.forEach(r => {
-      if (!dateMap[r.date]) dateMap[r.date] = { duration: 0, rate: 0, count: 0 }
+      if (!dateMap[r.date]) dateMap[r.date] = { duration: 0, totalShots: 0, totalHits: 0, count: 0 }
       dateMap[r.date].duration += r.duration
-      dateMap[r.date].rate += r.hitRate
+      dateMap[r.date].totalShots += r.totalShots || 0
+      dateMap[r.date].totalHits += r.hits || 0
       dateMap[r.date].count++
     })
     const dates = Object.keys(dateMap).sort()
-    const hitRates = dates.map(d => dateMap[d].count > 0 ? Math.round(dateMap[d].rate / dateMap[d].count) : 0)
+    const hitRates = dates.map(d => dateMap[d].totalShots > 0 ? Math.round(dateMap[d].totalHits / dateMap[d].totalShots * 100) : 0)
 
     return {
       totalSessions: filtered.length,
       totalDuration,
-      avgHitRate: filtered.length > 0 ? Math.round(totalRate / filtered.length) : 0,
+      avgHitRate: totalShotsAll > 0 ? Math.round(totalHitsAll / totalShotsAll * 100) : 0,
       projectStats,
       dates,
       hitRates,
