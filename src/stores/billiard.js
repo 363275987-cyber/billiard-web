@@ -357,14 +357,14 @@ export const useBilliardStore = defineStore('billiard', () => {
 
   // ===== 训练计时 =====
   function startTraining(projectId) {
-    currentTraining.value = { projectId, startTime: Date.now() }
+    currentTraining.value = { projectId, startTime: Date.now(), pausedAt: null, pausedDuration: 0 }
     liveShots.value = []
     localStorage.setItem('bt_current_training', JSON.stringify(currentTraining.value))
   }
 
   function endTraining() {
     if (!currentTraining.value) return null
-    const elapsed = Math.max(1, Math.round((Date.now() - currentTraining.value.startTime) / 60000))
+    const elapsed = Math.max(1, Math.round((Date.now() - currentTraining.value.startTime - (currentTraining.value.pausedDuration || 0)) / 60000))
     const projectId = currentTraining.value.projectId
     const stats = getLiveStats()
     currentTraining.value = null
@@ -377,9 +377,31 @@ export const useBilliardStore = defineStore('billiard', () => {
     localStorage.removeItem('bt_current_training')
   }
 
+  function pauseTraining() {
+    if (!currentTraining.value || currentTraining.value.pausedAt) return
+    currentTraining.value.pausedAt = Date.now()
+    localStorage.setItem('bt_current_training', JSON.stringify(currentTraining.value))
+  }
+
+  function resumeTraining() {
+    if (!currentTraining.value || !currentTraining.value.pausedAt) return
+    const pausedMs = Date.now() - currentTraining.value.pausedAt
+    currentTraining.value.pausedDuration = (currentTraining.value.pausedDuration || 0) + pausedMs
+    currentTraining.value.pausedAt = null
+    localStorage.setItem('bt_current_training', JSON.stringify(currentTraining.value))
+  }
+
+  function isTrainingPaused() {
+    return !!currentTraining.value?.pausedAt
+  }
+
   function getElapsedSeconds() {
     if (!currentTraining.value) return 0
-    return Math.floor((Date.now() - currentTraining.value.startTime) / 1000)
+    const base = Date.now() - currentTraining.value.startTime - (currentTraining.value.pausedDuration || 0)
+    if (currentTraining.value.pausedAt) {
+      return Math.floor((currentTraining.value.pausedAt - currentTraining.value.startTime - (currentTraining.value.pausedDuration || 0)) / 1000)
+    }
+    return Math.floor(base / 1000)
   }
 
   // ===== 训练计划历史 =====
@@ -460,6 +482,13 @@ export const useBilliardStore = defineStore('billiard', () => {
   // ===== 实时击球计数 =====
   function recordShot(hit) {
     liveShots.value.push({ hit, time: Date.now() })
+  }
+
+  function recordBatchShots(hit, count) {
+    const now = Date.now()
+    for (let i = 0; i < count; i++) {
+      liveShots.value.push({ hit, time: now + i })
+    }
   }
 
   function undoShot() {
@@ -554,8 +583,8 @@ export const useBilliardStore = defineStore('billiard', () => {
     setUserInfo, logout, register, login, addRecord, deleteRecord, toggleStar, getRecord,
     addToCart, updateCart, removeFromCart, clearCart,
     isInCart, removeFromCartByProjectId,
-    startTraining, endTraining, cancelTraining, getElapsedSeconds,
-    recordShot, undoShot, getLiveStats, clearLiveShots,
+    startTraining, endTraining, cancelTraining, pauseTraining, resumeTraining, isTrainingPaused, getElapsedSeconds,
+    recordShot, recordBatchShots, undoShot, getLiveStats, clearLiveShots,
     loadRecommendedPlan,
     assignHomework, getStudentHomework, getCoachHomework, completeHomework, deleteHomework, getStudentById,
     savePlanToHistory, restorePlanFromHistory, deletePlanHistory,

@@ -5,44 +5,77 @@
     <!-- ====== 全屏实时训练覆盖层 ====== -->
     <div class="live-overlay" v-if="store.currentTraining && liveMode">
       <div class="live-header">
+        <button class="btn-back" @click="handleExitLive">←</button>
         <span class="live-project-name">{{activeProjectName}}</span>
-        <span class="live-timer" :class="elapsedSeconds >= 3600 ? 'warn' : ''">{{formatTime(elapsedSeconds)}}</span>
+        <span class="live-timer-wrap">
+          <span class="live-timer" :class="elapsedSeconds >= 3600 ? 'warn' : ''">{{formatTime(elapsedSeconds)}}</span>
+          <button class="btn-pause" @click="togglePause">{{paused ? '▶ 继续' : '⏸ 暂停'}}</button>
+        </span>
       </div>
 
-      <div class="live-stats">
-        <div class="live-stat">
-          <span class="live-stat-num">{{liveStats.total}}</span>
-          <span class="live-stat-label">总杆数</span>
-        </div>
-        <div class="live-stat-divider"></div>
-        <div class="live-stat">
-          <span class="live-stat-num good">{{liveStats.hits}}</span>
-          <span class="live-stat-label">命中</span>
-        </div>
-        <div class="live-stat-divider"></div>
-        <div class="live-stat">
-          <span class="live-stat-num" :class="liveStats.hitRate >= 70 ? 'good' : liveStats.hitRate >= 50 ? 'mid' : 'bad'">{{liveStats.hitRate}}%</span>
-          <span class="live-stat-label">进球率</span>
-        </div>
+      <!-- 暂停遮罩 -->
+      <div class="pause-overlay" v-if="paused">
+        <span class="pause-icon">⏸</span>
+        <span class="pause-text">训练暂停中</span>
+        <button class="btn-resume" @click="togglePause">▶ 继续训练</button>
       </div>
 
-      <div class="live-buttons">
-        <button class="btn-hit" @click="store.recordShot(true)">
-          <span class="btn-hit-icon">✅</span>
-          <span class="btn-hit-text">命中</span>
-          <span class="btn-hit-count" v-if="liveStats.total > 0">{{liveStats.hits}}</span>
-        </button>
-        <button class="btn-miss" @click="store.recordShot(false)">
-          <span class="btn-miss-icon">❌</span>
-          <span class="btn-miss-text">失误</span>
-          <span class="btn-miss-count" v-if="liveStats.total > 0">{{liveStats.total - liveStats.hits}}</span>
-        </button>
-      </div>
+      <template v-else>
+        <div class="live-stats">
+          <div class="live-stat">
+            <span class="live-stat-num">{{liveStats.total}}</span>
+            <span class="live-stat-label">总杆数</span>
+          </div>
+          <div class="live-stat-divider"></div>
+          <div class="live-stat">
+            <span class="live-stat-num good">{{liveStats.hits}}</span>
+            <span class="live-stat-label">进球</span>
+          </div>
+          <div class="live-stat-divider"></div>
+          <div class="live-stat">
+            <span class="live-stat-num" :class="liveStats.hitRate >= 70 ? 'good' : liveStats.hitRate >= 50 ? 'mid' : 'bad'">{{liveStats.hitRate}}%</span>
+            <span class="live-stat-label">进球率</span>
+          </div>
+        </div>
 
-      <div class="live-actions">
-        <button class="btn-undo" @click="store.undoShot()" :disabled="liveStats.total === 0">↩️ 撤销上一杆</button>
-        <button class="btn-end-live" @click="handleEndLive">🏁 结束训练</button>
-      </div>
+        <!-- 批量输入区 -->
+        <div class="batch-area">
+          <div class="batch-row">
+            <span class="batch-label">一组</span>
+            <div class="batch-stepper">
+              <button class="stepper-btn" @click="batchCount = Math.max(1, batchCount - 1)">−</button>
+              <input class="batch-input" type="number" v-model.number="batchCount" min="1" max="200" />
+              <button class="stepper-btn" @click="batchCount = Math.min(200, batchCount + 1)">+</button>
+            </div>
+            <span class="batch-unit">颗</span>
+          </div>
+          <div class="batch-buttons">
+            <button class="btn-batch-hit" @click="handleBatch(true)">
+              ✅ 进球 {{batchCount}}颗
+            </button>
+            <button class="btn-batch-miss" @click="handleBatch(false)">
+              ❌ 失误 {{batchCount}}颗
+            </button>
+          </div>
+        </div>
+
+        <!-- 单杆按钮 -->
+        <div class="live-buttons">
+          <button class="btn-hit" @click="store.recordShot(true)">
+            <span class="btn-hit-icon">✅</span>
+            <span class="btn-hit-text">进球</span>
+          </button>
+          <button class="btn-miss" @click="store.recordShot(false)">
+            <span class="btn-miss-icon">❌</span>
+            <span class="btn-miss-text">失误</span>
+          </button>
+        </div>
+
+        <div class="live-actions">
+          <button class="btn-undo" @click="store.undoShot()" :disabled="liveStats.total === 0">↩️ 撤销</button>
+          <button class="btn-end-live" @click="handleEndLive">🏁 结束训练</button>
+        </div>
+      </template>
     </div>
 
     <!-- ====== 正常训练页 ====== -->
@@ -267,6 +300,8 @@ const store = useBilliardStore()
 const router = useRouter()
 const showAddPicker = ref(false)
 const liveMode = ref(false)
+const batchCount = ref(15)
+const paused = ref(false)
 
 // 计时器
 const elapsedSeconds = ref(0)
@@ -336,8 +371,36 @@ function handleStart(item) {
     liveMode.value = false
   }
   liveMode.value = true
+  paused.value = false
   store.startTraining(item.projectId)
   startTimer()
+}
+
+// ===== 暂停/恢复 =====
+function togglePause() {
+  if (paused.value) {
+    store.resumeTraining()
+    paused.value = false
+  } else {
+    store.pauseTraining()
+    paused.value = true
+  }
+}
+
+// ===== 批量记录 =====
+function handleBatch(hit) {
+  store.recordBatchShots(hit, batchCount.value)
+}
+
+// ===== 返回退出 =====
+function handleExitLive() {
+  if (liveStats.value.total > 0) {
+    if (!confirm('训练进行中，确定退出？数据将丢失')) return
+  }
+  stopTimer()
+  store.cancelTraining()
+  liveMode.value = false
+  paused.value = false
 }
 
 function handleEndLive() {
@@ -415,6 +478,7 @@ function planTotalDuration(plan) {
 onMounted(() => {
   if (store.currentTraining) {
     liveMode.value = true
+    paused.value = store.isTrainingPaused()
     startTimer()
   }
 })
@@ -439,12 +503,37 @@ onUnmounted(() => { stopTimer() })
   width: 100%; display: flex; justify-content: space-between; align-items: center;
   padding: 16px 0 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-.live-project-name { font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.9); }
+.btn-back {
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.1); color: #fff; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.btn-back:active { background: rgba(255,255,255,0.2); }
+.live-project-name { font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.9); flex: 1; text-align: center; }
+.live-timer-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .live-timer {
   font-size: 28px; font-weight: 800; color: #2ecc71;
   font-variant-numeric: tabular-nums; letter-spacing: 1px;
 }
 .live-timer.warn { color: #f39c12; }
+.btn-pause {
+  padding: 2px 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px;
+  background: transparent; color: rgba(255,255,255,0.6); font-size: 11px;
+  cursor: pointer;
+}
+.btn-pause:active { background: rgba(255,255,255,0.1); }
+
+/* 暂停遮罩 */
+.pause-overlay {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+}
+.pause-icon { font-size: 48px; opacity: 0.5; }
+.pause-text { font-size: 18px; color: rgba(255,255,255,0.5); font-weight: 600; }
+.btn-resume {
+  padding: 16px 48px; border: none; border-radius: 14px; font-size: 18px; font-weight: 700;
+  background: linear-gradient(135deg, #2ecc71, #27ae60); color: #fff; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(46,204,113,0.4);
+}
 
 .live-stats {
   display: flex; align-items: center; gap: 0; width: 100%;
@@ -458,6 +547,37 @@ onUnmounted(() => { stopTimer() })
 .live-stat-num.bad { color: #e74c3c; }
 .live-stat-label { display: block; font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 6px; }
 .live-stat-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+
+/* 批量输入 */
+.batch-area {
+  background: rgba(255,255,255,0.04); border-radius: 14px; padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.batch-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.batch-label { font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 600; }
+.batch-stepper { display: flex; align-items: center; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; }
+.stepper-btn {
+  width: 36px; height: 36px; border: none; background: transparent; color: #fff;
+  font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.stepper-btn:active { background: rgba(255,255,255,0.1); }
+.batch-input {
+  width: 48px; text-align: center; font-size: 18px; font-weight: 700; color: #fff;
+  background: transparent; border: none; outline: none;
+  -moz-appearance: textfield;
+}
+.batch-input::-webkit-outer-spin-button,
+.batch-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.batch-unit { font-size: 13px; color: rgba(255,255,255,0.4); }
+.batch-buttons { display: flex; gap: 10px; }
+.btn-batch-hit, .btn-batch-miss {
+  flex: 1; padding: 12px 0; border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.btn-batch-hit { background: rgba(46,204,113,0.15); color: #2ecc71; }
+.btn-batch-hit:active { background: rgba(46,204,113,0.25); }
+.btn-batch-miss { background: rgba(231,76,60,0.12); color: #e74c3c; }
+.btn-batch-miss:active { background: rgba(231,76,60,0.2); }
 
 .live-buttons {
   display: flex; gap: 16px; width: 100%; flex: 1; min-height: 0;
