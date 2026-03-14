@@ -169,6 +169,7 @@ export const useBilliardStore = defineStore('billiard', () => {
   }
 
   function saveLocal() {
+    localStorage.setItem('bt_current_user', JSON.stringify(userInfo.value?.phone || null))
     localStorage.setItem('bt_user', JSON.stringify(userInfo.value))
     localStorage.setItem('bt_records', JSON.stringify(records.value))
     localStorage.setItem('bt_cart', JSON.stringify(cart.value))
@@ -179,9 +180,47 @@ export const useBilliardStore = defineStore('billiard', () => {
     localStorage.setItem('bt_fav_projects', JSON.stringify(myFavProjects.value))
   }
 
-  // 用户
+  // ===== 用户系统（手机号+密码） =====
+  function getAllUsers() {
+    return JSON.parse(localStorage.getItem('bt_users') || '{}')
+  }
+  function saveAllUsers(users) {
+    localStorage.setItem('bt_users', JSON.stringify(users))
+  }
+  function simpleHash(str) {
+    let h = 0
+    for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h |= 0 }
+    return Math.abs(h).toString(36)
+  }
+
+  function register(phone, password) {
+    const users = getAllUsers()
+    if (users[phone]) return { ok: false, msg: '该手机号已注册' }
+    const id = 'u_' + simpleHash(phone)
+    users[phone] = { id, phone, passwordHash: simpleHash(password), nickName: '', avatar: '', role: 'student', createdAt: new Date().toISOString() }
+    saveAllUsers(users)
+    return { ok: true }
+  }
+
+  function login(phone, password) {
+    const users = getAllUsers()
+    const user = users[phone]
+    if (!user) return { ok: false, msg: '该手机号未注册' }
+    if (user.passwordHash !== simpleHash(password)) return { ok: false, msg: '密码错误' }
+    userInfo.value = user
+    saveLocal()
+    return { ok: true }
+  }
+
   function setUserInfo(info) {
-    userInfo.value = info
+    const merged = { ...userInfo.value, ...info }
+    userInfo.value = merged
+    // 同步到用户表
+    const users = getAllUsers()
+    if (merged.phone && users[merged.phone]) {
+      users[merged.phone] = { ...users[merged.phone], ...info }
+      saveAllUsers(users)
+    }
     saveLocal()
   }
 
@@ -510,7 +549,7 @@ export const useBilliardStore = defineStore('billiard', () => {
     planHistory, currentTraining, liveShots, homework, recommendedPlans,
     isLoggedIn, isCoach, todayRecords, todaySummary, weekStreak,
     starredRecords, myFavList, myPublishedList,
-    setUserInfo, logout, addRecord, deleteRecord, toggleStar, getRecord,
+    setUserInfo, logout, register, login, addRecord, deleteRecord, toggleStar, getRecord,
     addToCart, updateCart, removeFromCart, clearCart,
     isInCart, removeFromCartByProjectId,
     startTraining, endTraining, cancelTraining, getElapsedSeconds,
