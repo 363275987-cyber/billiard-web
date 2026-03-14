@@ -110,7 +110,7 @@
               <div class="plan-info">
                 <span class="plan-name">{{item.name}}</span>
                 <span class="plan-meta">
-                  ⏱ 预计{{item.duration}}分钟 · 进球率{{item.targetRate}}% · {{item.rounds}}轮
+                  ⏱ 预计{{item.duration}}分钟 · 进球率{{item.targetRate}}%
                 </span>
               </div>
             </div>
@@ -384,7 +384,6 @@ function loadHomeworkToCart(hw) {
           name: project.name,
           category: project.category,
           duration: item.duration || 30,
-          rounds: item.rounds || 3,
           targetRate: item.targetRate || 60
         })
       }

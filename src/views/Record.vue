@@ -1,6 +1,9 @@
 <!-- src/views/Record.vue - Keep 风格训练记录 -->
 <template>
   <div class="page">
+    <!-- 压缩中提示 -->
+    <div class="processing-hint" v-if="processing">{{processing}}</div>
+
     <div class="page-title-bar">
       <span class="back-btn" @click="goBack">‹ 返回</span>
       <span class="page-title">记录训练</span>
@@ -70,6 +73,39 @@
       <span class="duration-text">{{duration}} 分钟</span>
     </div>
 
+    <!-- 媒体上传（图片+视频） -->
+    <div class="card">
+      <div class="card-title">训练留影</div>
+      <div class="media-area">
+        <!-- 已上传的图片预览 -->
+        <div class="media-grid" v-if="imagePreviews.length > 0">
+          <div class="media-thumb" v-for="(img, i) in imagePreviews" :key="'img'+i">
+            <img :src="img.url" class="thumb-img" />
+            <span class="thumb-remove" @click="removeImage(i)">✕</span>
+          </div>
+        </div>
+        <!-- 已上传的视频预览 -->
+        <div class="video-thumb" v-if="videoPreviewUrl">
+          <video :src="videoPreviewUrl" playsinline class="thumb-video" />
+          <span class="thumb-remove" @click="removeVideo">✕</span>
+        </div>
+        <!-- 上传按钮 -->
+        <div class="upload-btns" v-if="imagePreviews.length < 9 && !videoPreviewUrl">
+          <div class="upload-btn" @click="pickImage">
+            <span class="upload-icon">📷</span>
+            <span class="upload-text">拍照/相册</span>
+          </div>
+          <div class="upload-btn" @click="pickVideo">
+            <span class="upload-icon">🎬</span>
+            <span class="upload-text">录视频</span>
+          </div>
+        </div>
+        <span class="upload-hint">图片最多9张，视频最多1个，自动压缩</span>
+      </div>
+      <input type="file" ref="imageInput" accept="image/*" multiple capture="environment" @change="onImageChange" style="display:none" />
+      <input type="file" ref="videoInput" accept="video/*" capture="environment" @change="onVideoChange" style="display:none" />
+    </div>
+
     <!-- 训练心得 -->
     <div class="card">
       <div class="card-title">训练心得</div>
@@ -87,9 +123,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBilliardStore } from '../stores/billiard'
+import { saveFile, compressImage, compressVideo, mediaId } from '../utils/mediaStore'
 
 const store = useBilliardStore()
 const route = useRoute()
@@ -105,6 +142,95 @@ const hitRate = ref(0)
 const note = ref('')
 const starred = ref(false)
 const isActualTime = ref(false)
+
+// 媒体
+const imageInput = ref(null)
+const videoInput = ref(null)
+const imagePreviews = ref([])  // { url, mediaId, blob }
+const videoPreviewUrl = ref('')
+const videoMediaId = ref('')
+const videoCompressed = ref(false)
+const blobUrls = ref([])
+const processing = ref('')
+
+// ===== 媒体处理 =====
+function pickImage() { imageInput.value?.click() }
+function pickVideo() { videoInput.value?.click() }
+
+async function onImageChange(e) {
+  const files = Array.from(e.target.files || [])
+  const remaining = 9 - imagePreviews.value.length
+  if (remaining <= 0) return
+  for (const file of files.slice(0, remaining)) {
+    processing.value = '图片压缩中...'
+    const compressed = await compressImage(file, 1280)
+    const id = mediaId('img')
+    const url = URL.createObjectURL(compressed)
+    blobUrls.value.push(url)
+    imagePreviews.value.push({ url, mediaId: id, blob: compressed })
+    await saveFile(id, compressed)
+  }
+  processing.value = ''
+  e.target.value = ''
+}
+
+async function onVideoChange(e) {
+  const file = (e.target.files || [])[0]
+  if (!file) return
+  // 限制 200MB
+  if (file.size > 200 * 1024 * 1024) {
+    alert('视频太大啦，请控制在 200MB 以内')
+    e.target.value = ''
+    return
+  }
+  const url = URL.createObjectURL(file)
+  blobUrls.value.push(url)
+  videoPreviewUrl.value = url
+
+  // 大于 5MB 自动压缩
+  if (file.size >= 5 * 1024 * 1024) {
+    processing.value = '视频压缩中，请稍候...'
+    const compressed = await compressVideo(file, 1280)
+    if (compressed && compressed !== file) {
+      const id = mediaId('vid')
+      videoMediaId.value = id
+      await saveFile(id, compressed)
+      videoCompressed.value = true
+      // 更新预览 URL
+      URL.revokeObjectURL(videoPreviewUrl.value)
+      const newUrl = URL.createObjectURL(compressed)
+      blobUrls.value.push(newUrl)
+      videoPreviewUrl.value = newUrl
+    } else {
+      const id = mediaId('vid')
+      videoMediaId.value = id
+      await saveFile(id, file)
+    }
+  } else {
+    const id = mediaId('vid')
+    videoMediaId.value = id
+    await saveFile(id, file)
+  }
+  processing.value = ''
+  e.target.value = ''
+}
+
+function removeImage(index) {
+  const item = imagePreviews.value[index]
+  URL.revokeObjectURL(item.url)
+  blobUrls.value = blobUrls.value.filter(u => u !== item.url)
+  imagePreviews.value.splice(index, 1)
+}
+
+function removeVideo() {
+  if (videoPreviewUrl.value) {
+    URL.revokeObjectURL(videoPreviewUrl.value)
+    blobUrls.value = blobUrls.value.filter(u => u !== videoPreviewUrl.value)
+  }
+  videoPreviewUrl.value = ''
+  videoMediaId.value = ''
+  videoCompressed.value = false
+}
 
 // 从 URL 参数自动选中项目和时长
 onMounted(() => {
@@ -150,6 +276,11 @@ function quickHit(percent) {
 function saveRecord() {
   if (!selectedProject.value) { alert('请选择训练项目'); return }
 
+  const mediaIds = [
+    ...imagePreviews.value.map(img => img.mediaId),
+    ...(videoMediaId.value ? [videoMediaId.value] : [])
+  ]
+
   store.addRecord({
     id: Date.now().toString(),
     project: selectedProject.value,
@@ -161,11 +292,23 @@ function saveRecord() {
     note: note.value,
     date: store.getToday(),
     starred: starred.value,
+    mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
     createdAt: new Date().toISOString()
   })
 
   alert(starred.value ? '已保存并收藏心得 ⭐' : '记录成功 ✅')
+  cleanupAndGoBack()
+}
+
+// 清理 + 返回
+function cleanupAndGoBack() {
   hits.value = 0; hitRate.value = 0; note.value = ''; starred.value = false
+  imagePreviews.value.forEach(img => URL.revokeObjectURL(img.url))
+  imagePreviews.value = []
+  if (videoPreviewUrl.value) URL.revokeObjectURL(videoPreviewUrl.value)
+  videoPreviewUrl.value = ''; videoMediaId.value = ''
+  blobUrls.value = []
+  processing.value = ''
   goBack()
 }
 
@@ -180,6 +323,10 @@ function goBack() {
     router.push('/')
   }
 }
+
+onUnmounted(() => {
+  blobUrls.value.forEach(url => URL.revokeObjectURL(url))
+})
 </script>
 
 <style scoped>
@@ -255,6 +402,37 @@ function goBack() {
 .note-input {
   width: 100%; min-height: 80px; font-size: 14px; line-height: 1.6; color: #333;
   background: #f8f9fa; border-radius: 8px; padding: 12px; border: none; outline: none; resize: vertical;
+}
+
+/* 媒体上传 */
+.media-area { margin-top: 8px; }
+.media-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.media-thumb, .video-thumb {
+  position: relative; width: 80px; height: 80px; border-radius: 10px;
+  overflow: hidden; flex-shrink: 0;
+}
+.thumb-img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-video { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.thumb-remove {
+  position: absolute; top: 2px; right: 2px; width: 20px; height: 20px;
+  background: rgba(0,0,0,0.55); color: #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; cursor: pointer; line-height: 1;
+}
+.upload-btns { display: flex; gap: 10px; margin-bottom: 8px; }
+.upload-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 14px 0; background: #f8f9fa; border-radius: 10px; cursor: pointer;
+  transition: background 0.2s;
+}
+.upload-btn:active { background: #f0f0f0; }
+.upload-icon { font-size: 24px; margin-bottom: 4px; }
+.upload-text { font-size: 12px; color: #666; font-weight: 500; }
+.upload-hint { display: block; font-size: 11px; color: #ccc; margin-top: 4px; }
+.processing-hint {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.75); color: #fff; padding: 14px 24px;
+  border-radius: 10px; font-size: 14px; z-index: 999; pointer-events: none;
 }
 
 .save-area {

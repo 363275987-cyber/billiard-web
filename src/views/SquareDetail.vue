@@ -111,15 +111,6 @@
         </div>
 
         <div class="param-item">
-          <div class="param-label">🔄 训练轮数</div>
-          <div class="stepper">
-            <button class="stepper-btn" @click="paramRounds = Math.max(1, paramRounds - 1)">−</button>
-            <span class="stepper-value">{{paramRounds}} 轮</span>
-            <button class="stepper-btn" @click="paramRounds = Math.min(10, paramRounds + 1)">+</button>
-          </div>
-        </div>
-
-        <div class="param-item">
           <div class="param-label">🎯 目标进球率</div>
           <div class="quick-rate">
             <button :class="{active: paramTarget === 30}" @click="paramTarget = 30">30%</button>
@@ -162,7 +153,6 @@ const blobUrls = []
 // 参数面板
 const showParamPanel = ref(false)
 const paramDuration = ref(30)
-const paramRounds = ref(3)
 const paramTarget = ref(60)
 const showCustomDuration = ref(false)
 
@@ -231,7 +221,6 @@ function openParamPanel() {
   if (!store.isLoggedIn) { alert('请先登录'); return }
   if (store.isInCart(project.value.id)) return
   paramDuration.value = 30
-  paramRounds.value = 3
   paramTarget.value = 60
   showCustomDuration.value = false
   showParamPanel.value = true
@@ -243,7 +232,6 @@ function confirmAddPlan() {
     name: project.value.name,
     category: project.value.category,
     duration: paramDuration.value,
-    rounds: paramRounds.value,
     targetRate: paramTarget.value
   })
   showParamPanel.value = false

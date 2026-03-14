@@ -32,7 +32,7 @@
         <div class="cart-item" v-for="(item, i) in store.cart" :key="item.cartId">
           <div class="cart-content">
             <span class="cart-name">{{item.name}}</span>
-            <span class="cart-meta">{{item.duration}}分钟 · {{item.rounds}}轮 · 进球率{{item.targetRate}}%</span>
+            <span class="cart-meta">{{item.duration}}分钟 · 进球率{{item.targetRate}}%</span>
           </div>
           <span class="cart-remove" @click="store.removeFromCart(i)">✕</span>
         </div>
@@ -63,15 +63,6 @@
             </div>
           </div>
           <div class="pref-section">
-            <span class="pref-label">🔄 训练轮数</span>
-            <div class="quick-chips">
-              <button :class="{active: prefRounds === 1}" @click="prefRounds = 1">1轮</button>
-              <button :class="{active: prefRounds === 3}" @click="prefRounds = 3">3轮</button>
-              <button :class="{active: prefRounds === 5}" @click="prefRounds = 5">5轮</button>
-              <button :class="{active: prefRounds === 10}" @click="prefRounds = 10">10轮</button>
-            </div>
-          </div>
-          <div class="pref-section">
             <span class="pref-label">🎯 目标进球率</span>
             <div class="quick-chips">
               <button :class="{active: prefTarget === 30}" @click="prefTarget = 30">30%</button>
@@ -99,7 +90,6 @@ const tab = ref('menu')
 const showModal = ref(false)
 const editingItem = ref(null)
 const prefDuration = ref(30)
-const prefRounds = ref(3)
 const prefTarget = ref(60)
 
 const categories = [
@@ -129,7 +119,6 @@ const categories = [
 function openAdd(item) {
   editingItem.value = item
   prefDuration.value = 30
-  prefRounds.value = 3
   prefTarget.value = 60
   showModal.value = true
 }
@@ -142,7 +131,6 @@ function addToCart() {
     name: editingItem.value.name,
     desc: editingItem.value.desc,
     duration: prefDuration.value,
-    rounds: prefRounds.value,
     targetRate: prefTarget.value,
   })
   showModal.value = false

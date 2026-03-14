@@ -79,16 +79,6 @@
           </div>
         </div>
 
-        <!-- 训练轮数 -->
-        <div class="param-item">
-          <div class="param-label">🔄 训练轮数</div>
-          <div class="stepper">
-            <button class="stepper-btn" @click="paramRounds = Math.max(1, paramRounds - 1)">−</button>
-            <span class="stepper-value">{{paramRounds}} 轮</span>
-            <button class="stepper-btn" @click="paramRounds = Math.min(10, paramRounds + 1)">+</button>
-          </div>
-        </div>
-
         <!-- 目标进球率 -->
         <div class="param-item">
           <div class="param-label">🎯 目标进球率</div>
@@ -127,7 +117,6 @@ const sortBy = ref('hot')
 const showParamPanel = ref(false)
 const paramProject = ref(null)
 const paramDuration = ref(30)
-const paramRounds = ref(3)
 const paramTarget = ref(60)
 const showCustomDuration = ref(false)
 
@@ -154,7 +143,6 @@ function openParamPanel(project) {
   if (store.isInCart(project.id)) return
   paramProject.value = project
   paramDuration.value = 30
-  paramRounds.value = 3
   paramTarget.value = 60
   showCustomDuration.value = false
   showParamPanel.value = true
@@ -167,7 +155,6 @@ function confirmAddPlan() {
     name: paramProject.value.name,
     category: paramProject.value.category,
     duration: paramDuration.value,
-    rounds: paramRounds.value,
     targetRate: paramTarget.value
   })
   showParamPanel.value = false

@@ -83,16 +83,18 @@ export function compressImage(file, maxDim = 1280) {
  * 视频压缩 — canvas 720p + MediaRecorder
  * 仅在浏览器支持时工作，否则返回原文件
  * 最大等倍速压缩，有超时保护
+ * 支持最大 200MB 原始文件，自动压缩至 720p
  */
 export function compressVideo(file, maxWidth = 1280) {
   return new Promise((resolve) => {
-    // 小文件不压缩
-    if (file.size < 10 * 1024 * 1024) {
-      resolve(file)
+    // 不支持 MediaRecorder 直接返回（但限制 50MB）
+    if (typeof MediaRecorder === 'undefined') {
+      resolve(file.size <= 50 * 1024 * 1024 ? file : null)
       return
     }
-    // 不支持 MediaRecorder 直接返回
-    if (typeof MediaRecorder === 'undefined') {
+
+    // 小视频不压缩
+    if (file.size < 5 * 1024 * 1024) {
       resolve(file)
       return
     }

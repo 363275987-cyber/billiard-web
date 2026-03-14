@@ -66,9 +66,9 @@ export const useBilliardStore = defineStore('billiard', () => {
       name: '🎯 新手入门',
       desc: '适合刚开始学台球的朋友，从中袋基础练起',
       items: [
-        { projectId: 'sq_001', duration: 30, rounds: 3, targetRate: 50 },
-        { projectId: 'sq_002', duration: 20, rounds: 2, targetRate: 40 },
-        { projectId: 'sq_005', duration: 15, rounds: 2, targetRate: 30 }
+        { projectId: 'sq_001', duration: 30, targetRate: 50 },
+        { projectId: 'sq_002', duration: 20, targetRate: 40 },
+        { projectId: 'sq_005', duration: 15, targetRate: 30 }
       ]
     },
     {
@@ -76,9 +76,9 @@ export const useBilliardStore = defineStore('billiard', () => {
       name: '💪 进阶提升',
       desc: '有基础，想稳步提高中远台能力',
       items: [
-        { projectId: 'sq_003', duration: 30, rounds: 3, targetRate: 50 },
-        { projectId: 'sq_004', duration: 20, rounds: 2, targetRate: 40 },
-        { projectId: 'sq_005', duration: 20, rounds: 2, targetRate: 40 }
+        { projectId: 'sq_003', duration: 30, targetRate: 50 },
+        { projectId: 'sq_004', duration: 20, targetRate: 40 },
+        { projectId: 'sq_005', duration: 20, targetRate: 40 }
       ]
     },
     {
@@ -86,9 +86,9 @@ export const useBilliardStore = defineStore('billiard', () => {
       name: '🔥 高手突破',
       desc: '追求更高水平，挑战连续得分',
       items: [
-        { projectId: 'sq_006', duration: 30, rounds: 3, targetRate: 60 },
-        { projectId: 'sq_007', duration: 30, rounds: 3, targetRate: 60 },
-        { projectId: 'sq_008', duration: 20, rounds: 2, targetRate: 50 }
+        { projectId: 'sq_006', duration: 30, targetRate: 60 },
+        { projectId: 'sq_007', duration: 30, targetRate: 60 },
+        { projectId: 'sq_008', duration: 20, targetRate: 50 }
       ]
     }
   ]
@@ -448,7 +448,6 @@ export const useBilliardStore = defineStore('billiard', () => {
           name: project.name,
           category: project.category,
           duration: item.duration,
-          rounds: item.rounds,
           targetRate: item.targetRate
         })
       }

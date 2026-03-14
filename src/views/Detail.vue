@@ -29,11 +29,21 @@
     </div>
 
     <div class="section">
+      <!-- 媒体展示 -->
+      <div class="card" v-if="mediaFiles.length > 0">
+        <div class="card-title">训练留影</div>
+        <div class="media-gallery">
+          <template v-for="(m, i) in mediaFiles" :key="'media'+i">
+            <img v-if="m.type === 'image'" :src="m.url" class="gallery-img" @click="previewImage(i)" />
+            <video v-else :src="m.url" controls playsinline class="gallery-video" />
+          </template>
+        </div>
+      </div>
       <div class="card" v-if="record.note">
         <div class="card-title">训练心得</div>
         <p class="note-text">{{record.note}}</p>
       </div>
-      <div class="card" v-else><p class="no-note">本次训练没有记录心得</p></div>
+      <div class="card" v-else-if="!record.mediaIds || record.mediaIds.length === 0"><p class="no-note">本次训练没有记录心得</p></div>
     </div>
 
     <div class="time-row"><span class="time-text">记录时间：{{record.createdAt}}</span></div>
@@ -52,15 +62,45 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBilliardStore } from '../stores/billiard'
+import { getFile } from '../utils/mediaStore'
 
 const store = useBilliardStore()
 const route = useRoute()
 const router = useRouter()
 
 const record = computed(() => store.getRecord(route.params.id))
+const mediaFiles = ref([])  // { url, type: 'image'|'video' }
+const blobUrls = ref([])
+
+onMounted(async () => {
+  const rec = record.value
+  if (rec?.mediaIds?.length) {
+    for (const id of rec.mediaIds) {
+      try {
+        const blob = await getFile(id)
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          blobUrls.value.push(url)
+          const isVideo = blob.type?.startsWith('video/')
+          mediaFiles.value.push({ url, type: isVideo ? 'video' : 'image' })
+        }
+      } catch(e) { /* 文件可能已丢失 */ }
+    }
+  }
+})
+
+onUnmounted(() => {
+  blobUrls.value.forEach(url => URL.revokeObjectURL(url))
+})
+
+function previewImage(index) {
+  // 点击图片可全屏预览（简单实现：直接打开）
+  const img = mediaFiles.value[index]
+  if (img) window.open(img.url, '_blank')
+}
 
 function handleToggleStar() {
   store.toggleStar(record.value.id)
@@ -112,6 +152,17 @@ function handleDelete() {
 .section { padding: 0 12px; }
 .note-text { font-size: 14px; line-height: 1.8; color: #555; }
 .no-note { font-size: 14px; color: #ccc; }
+
+/* 媒体展示 */
+.media-gallery { display: flex; flex-wrap: wrap; gap: 8px; }
+.gallery-img {
+  width: 80px; height: 80px; object-fit: cover; border-radius: 8px; cursor: pointer;
+  transition: transform 0.15s;
+}
+.gallery-img:active { transform: scale(0.95); }
+.gallery-video {
+  width: 100%; max-height: 240px; border-radius: 8px; background: #000;
+}
 .time-row { padding: 0 18px; margin-top: 12px; }
 .time-text { font-size: 12px; color: #ccc; }
 
