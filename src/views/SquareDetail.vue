@@ -1,4 +1,4 @@
-<!-- src/views/SquareDetail.vue - 广场项目详情 -->
+<!-- src/views/SquareDetail.vue - 广场项目详情（支持视频+图片） -->
 <template>
   <div class="page" v-if="project">
     <!-- 头部 -->
@@ -45,9 +45,25 @@
     </div>
 
     <!-- 演示视频 -->
-    <div class="card" v-if="project.videoUrl">
+    <div class="card" v-if="videoUrl">
       <div class="card-title">🎥 演示视频</div>
-      <video :src="project.videoUrl" controls playsinline class="detail-video" />
+      <video :src="videoUrl" controls playsinline class="detail-video" />
+    </div>
+
+    <!-- 项目图片 -->
+    <div class="card" v-if="imageUrls.length > 0">
+      <div class="card-title">📸 项目图片</div>
+      <div class="image-gallery">
+        <div class="gallery-item" v-for="(url, i) in imageUrls" :key="i" @click="viewImage(i)">
+          <img :src="url" class="gallery-img" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 图片查看器 -->
+    <div class="viewer-overlay" v-if="viewingImage !== null" @click="viewingImage = null">
+      <img :src="imageUrls[viewingImage]" class="viewer-img" />
+      <span class="viewer-close">✕</span>
     </div>
 
     <!-- 加入训练计划 -->
@@ -127,14 +143,21 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBilliardStore } from '../stores/billiard'
+import { getFile } from '../utils/mediaStore'
 
 const store = useBilliardStore()
 const route = useRoute()
 const router = useRouter()
 const liked = ref(false)
+const viewingImage = ref(null)
+
+// 媒体资源
+const videoUrl = ref('')
+const imageUrls = ref([])
+const blobUrls = []
 
 // 参数面板
 const showParamPanel = ref(false)
@@ -147,6 +170,50 @@ const project = computed(() => store.getSquareProject(route.params.id))
 
 function categoryLabel(cat) {
   return { basic: '🎯 基础', medium: '💪 进阶', advanced: '🔥 高级' }[cat] || cat
+}
+
+// 加载媒体资源
+async function loadMedia() {
+  if (!project.value) return
+
+  // 向后兼容：旧的 videoUrl（base64）
+  if (project.value.videoUrl && !project.value.videoMediaId) {
+    videoUrl.value = project.value.videoUrl
+  }
+
+  // 新的 IndexedDB 视频
+  if (project.value.videoMediaId) {
+    try {
+      const blob = await getFile(project.value.videoMediaId)
+      if (blob) {
+        const url = URL.createObjectURL(blob)
+        blobUrls.push(url)
+        videoUrl.value = url
+      }
+    } catch(e) {
+      console.warn('Failed to load video from IndexedDB:', e)
+    }
+  }
+
+  // 图片
+  if (project.value.imageMediaIds && project.value.imageMediaIds.length > 0) {
+    for (const id of project.value.imageMediaIds) {
+      try {
+        const blob = await getFile(id)
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          blobUrls.push(url)
+          imageUrls.value.push(url)
+        }
+      } catch(e) {
+        console.warn('Failed to load image:', id, e)
+      }
+    }
+  }
+}
+
+function viewImage(index) {
+  viewingImage.value = index
 }
 
 function handleLike() {
@@ -185,6 +252,16 @@ function confirmAddPlan() {
 function goTrain() {
   router.push('/record?projectId=' + project.value.id + '&from=square')
 }
+
+onMounted(() => {
+  loadMedia()
+})
+
+onUnmounted(() => {
+  blobUrls.forEach(url => {
+    try { URL.revokeObjectURL(url) } catch(e) {}
+  })
+})
 </script>
 
 <style scoped>
@@ -222,9 +299,26 @@ function goTrain() {
 
 .detail-video { width: 100%; border-radius: 10px; max-height: 240px; background: #000; }
 
-.video-placeholder { background: #f5f5f5; border-radius: 10px; padding: 40px; text-align: center; cursor: pointer; }
-.video-icon { font-size: 40px; display: block; margin-bottom: 8px; }
-.video-text { font-size: 14px; color: #b0b0b0; }
+/* 图片画廊 */
+.image-gallery { display: flex; flex-wrap: wrap; gap: 8px; }
+.gallery-item {
+  width: calc(33.33% - 6px); border-radius: 8px; overflow: hidden; cursor: pointer;
+  aspect-ratio: 4/3;
+}
+.gallery-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; }
+.gallery-item:active .gallery-img { transform: scale(0.96); }
+
+/* 图片查看器 */
+.viewer-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000;
+  background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center;
+}
+.viewer-img { max-width: 95%; max-height: 85vh; border-radius: 8px; object-fit: contain; }
+.viewer-close {
+  position: absolute; top: 16px; right: 16px; width: 36px; height: 36px;
+  background: rgba(255,255,255,0.15); color: #fff; border-radius: 50%;
+  font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
 
 .btn-add-plan {
   width: 100%; padding: 14px 0; border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
@@ -259,8 +353,6 @@ function goTrain() {
 
 .param-item { padding: 16px 0; }
 .param-label { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; }
-.param-slider { width: 100%; accent-color: #2ecc71; margin: 8px 0; }
-.param-value { display: block; text-align: center; font-size: 22px; font-weight: 800; color: #2ecc71; margin-top: 4px; }
 
 .duration-btns { gap: 6px !important; }
 .duration-btns button { min-width: 60px; font-size: 13px !important; }
