@@ -24,10 +24,16 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useBilliardStore } from './stores/billiard'
 
 const route = useRoute()
+const store = useBilliardStore()
+
+onMounted(() => {
+  store.init()
+})
 const hideOn = ['/detail', '/record', '/square-detail', '/my-projects', '/my-starred', '/publish', '/plan']
 const showTabBar = computed(() => !hideOn.some(p => route.path.startsWith(p)))
 </script>

@@ -102,13 +102,13 @@ function previewImage(index) {
   if (img) window.open(img.url, '_blank')
 }
 
-function handleToggleStar() {
-  store.toggleStar(record.value.id)
+async function handleToggleStar() {
+  await store.toggleStar(record.value.id)
 }
 
-function handleDelete() {
+async function handleDelete() {
   if (confirm('确定要删除这条训练记录吗？')) {
-    store.deleteRecord(record.value.id)
+    await store.deleteRecord(record.value.id)
     router.back()
   }
 }

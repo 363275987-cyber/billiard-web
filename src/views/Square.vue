@@ -160,9 +160,9 @@ function confirmAddPlan() {
   showParamPanel.value = false
 }
 
-function toggleFav(id) {
+async function toggleFav(id) {
   if (!store.isLoggedIn) { alert('请先登录'); return }
-  store.toggleFavProject(id)
+  await store.toggleFavProject(id)
 }
 </script>
 

@@ -193,10 +193,10 @@ const authTab = ref('login')
 const loginPhone = ref('')
 const loginPwd = ref('')
 
-function handleLogin() {
+async function handleLogin() {
   if (!/^1\d{10}$/.test(loginPhone.value)) { alert('请输入正确的11位手机号'); return }
   if (!loginPwd.value) { alert('请输入密码'); return }
-  const res = store.login(loginPhone.value.trim(), loginPwd.value)
+  const res = await store.login(loginPhone.value.trim(), loginPwd.value)
   if (res.ok) {
     alert('登录成功 🎉')
     router.push('/')
@@ -217,11 +217,11 @@ const customAvatarUrl = ref('')
 const avatarInput = ref(null)
 const avatarBlobUrl = ref('') // cleanup
 
-function handleRegister() {
+async function handleRegister() {
   if (!/^1\d{10}$/.test(regPhone.value)) { alert('请输入正确的11位手机号'); return }
   if (regPwd.value.length < 6) { alert('密码至少6位'); return }
   if (regPwd.value !== regPwd2.value) { alert('两次密码不一致'); return }
-  const res = store.register(regPhone.value.trim(), regPwd.value)
+  const res = await store.register(regPhone.value.trim(), regPwd.value)
   if (!res.ok) { alert(res.msg); return }
   // 注册成功，进入第二步
   regStep.value = 2
@@ -230,7 +230,7 @@ function handleRegister() {
 async function handleCompleteReg() {
   if (!regNickName.value.trim()) { alert('给自己起个名字吧'); return }
   const avatar = customAvatarUrl.value || regAvatar.value
-  store.setUserInfo({
+  await store.setUserInfo({
     phone: regPhone.value.trim(),
     nickName: regNickName.value.trim(),
     avatar,
@@ -299,9 +299,9 @@ async function onEditAvatarFile(e) {
   e.target.value = ''
 }
 
-function saveEdit() {
+async function saveEdit() {
   if (!editNick.value.trim()) { alert('昵称不能为空'); return }
-  store.setUserInfo({
+  await store.setUserInfo({
     nickName: editNick.value.trim(),
     avatar: editCustomUrl.value || editAvatar.value
   })
@@ -316,8 +316,8 @@ const maskedPhone = computed(() => {
 
 const totalDuration = computed(() => store.records.reduce((s, r) => s + (r.duration || 0), 0))
 
-function handleLogout() {
-  if (confirm('确定要退出登录吗？')) store.logout()
+async function handleLogout() {
+  if (confirm('确定要退出登录吗？')) await store.logout()
 }
 
 onUnmounted(() => {

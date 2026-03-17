@@ -231,7 +231,7 @@ async function handlePublish() {
       }
     }
 
-    store.publishProject({
+    await store.publishProject({
       id: 'user_' + Date.now(),
       name: form.name.trim(),
       desc: form.desc.trim(),

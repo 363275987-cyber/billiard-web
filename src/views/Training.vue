@@ -105,7 +105,7 @@
               </span>
             </div>
             <button class="btn-load-homework" @click="loadHomeworkToCart(hw)">🛒 加入今日计划</button>
-            <button class="btn-done-homework" @click="store.completeHomework(hw.id)">✅ 标记完成</button>
+            <button class="btn-done-homework" @click="handleCompleteHomework(hw)">✅ 标记完成</button>
           </div>
         </div>
       </div>
@@ -454,21 +454,25 @@ function loadHomeworkToCart(hw) {
   })
 }
 
-function handleSavePlan() {
-  store.savePlanToHistory()
+async function handleCompleteHomework(hw) {
+  await store.completeHomework(hw.id)
+}
+
+async function handleSavePlan() {
+  await store.savePlanToHistory()
   alert('计划已保存 ✅')
 }
 
-function handleRestore(historyId) {
+async function handleRestore(historyId) {
   if (store.cart.filter(i => i.projectId).length > 0) {
     if (!confirm('当前已有训练计划，要替换吗？')) return
   }
-  store.restorePlanFromHistory(historyId)
+  await store.restorePlanFromHistory(historyId)
 }
 
-function handleDeleteHistory(historyId) {
+async function handleDeleteHistory(historyId) {
   if (!confirm('确定删除这个历史计划吗？')) return
-  store.deletePlanHistory(historyId)
+  await store.deletePlanHistory(historyId)
 }
 
 function planTotalDuration(plan) {

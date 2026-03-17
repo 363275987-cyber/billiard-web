@@ -206,16 +206,16 @@ function viewImage(index) {
   viewingImage.value = index
 }
 
-function handleLike() {
+async function handleLike() {
   if (liked.value) return
   liked.value = true
   localStorage.setItem('bt_liked_' + project.value.id, 'true')
-  store.likeProject(project.value.id)
+  await store.likeProject(project.value.id)
 }
 
-function handleFav() {
+async function handleFav() {
   if (!store.isLoggedIn) { alert('请先登录'); return }
-  store.toggleFavProject(project.value.id)
+  await store.toggleFavProject(project.value.id)
 }
 
 function openParamPanel() {

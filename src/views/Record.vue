@@ -278,7 +278,7 @@ function quickHit(percent) {
   calcHitRate()
 }
 
-function saveRecord() {
+async function saveRecord() {
   if (!selectedProject.value) { alert('请选择训练项目'); return }
 
   const mediaIds = [
@@ -286,7 +286,7 @@ function saveRecord() {
     ...(videoMediaId.value ? [videoMediaId.value] : [])
   ]
 
-  store.addRecord({
+  await store.addRecord({
     id: Date.now().toString(),
     project: selectedProject.value,
     projectId: selectedProjectId.value,
