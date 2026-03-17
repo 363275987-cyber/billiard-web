@@ -145,6 +145,7 @@ export const useBilliardStore = defineStore('billiard', () => {
       if (session?.user) {
         await loadUserProfile(session.user)
         await loadAllData()
+        await syncTodayPlan()
       }
       await loadSquareProjects()
     } catch (e) {
@@ -212,6 +213,7 @@ export const useBilliardStore = defineStore('billiard', () => {
     if (data.user) {
       await loadUserProfile(data.user)
       await loadAllData()
+      await syncTodayPlan()
       return { ok: true }
     }
     return { ok: false, msg: '登录失败' }
@@ -396,14 +398,14 @@ export const useBilliardStore = defineStore('billiard', () => {
   }
 
   // ===== 购物车（localStorage） =====
-  function addToCart(item) { cart.value.push(item); saveCartLocal() }
-  function updateCart(index, data) { Object.assign(cart.value[index], data); saveCartLocal() }
-  function removeFromCart(index) { cart.value.splice(index, 1); saveCartLocal() }
-  function clearCart() { cart.value = []; saveCartLocal() }
+  function addToCart(item) { cart.value.push(item); saveCartLocal(); syncCartToCloud() }
+  function updateCart(index, data) { Object.assign(cart.value[index], data); saveCartLocal(); syncCartToCloud() }
+  function removeFromCart(index) { cart.value.splice(index, 1); saveCartLocal(); syncCartToCloud() }
+  function clearCart() { cart.value = []; saveCartLocal(); syncCartToCloud() }
   function isInCart(projectId) { return cart.value.some(item => item.projectId === projectId) }
   function removeFromCartByProjectId(projectId) {
     const idx = cart.value.findIndex(item => item.projectId === projectId)
-    if (idx >= 0) { cart.value.splice(idx, 1); saveCartLocal() }
+    if (idx >= 0) { cart.value.splice(idx, 1); saveCartLocal(); syncCartToCloud() }
   }
 
   function loadRecommendedPlan(planId) {
@@ -423,6 +425,7 @@ export const useBilliardStore = defineStore('billiard', () => {
       if (!myFavProjectIds.value.includes(item.projectId)) myFavProjectIds.value.push(item.projectId)
     })
     saveCartLocal()
+    syncCartToCloud()
   }
 
   // ===== 训练计时（内存） =====
@@ -480,6 +483,43 @@ export const useBilliardStore = defineStore('billiard', () => {
       .order('created_at', { ascending: false }).limit(30)
     planHistory.value = data ? data.map(p => ({ id: p.id, items: p.items, date: p.date, savedAt: p.created_at })) : []
   }
+
+  // 登录后同步今日训练计划（云端 ↔ 本地）
+  async function syncTodayPlan() {
+    if (!userInfo.value) return
+    const today = getToday()
+    const localItems = cart.value.filter(item => item.projectId)
+    const cloudPlan = planHistory.value.find(p => p.date === today)
+
+    if (localItems.length > 0 && !cloudPlan) {
+      // 本地有计划但云端没有 → 上传
+      await supabase.from('plan_history').insert({ user_id: userInfo.value.id, items: localItems, date: today })
+      await loadPlanHistory()
+    } else if (cloudPlan && localItems.length === 0) {
+      // 云端有计划但本地没有 → 恢复
+      cart.value = cloudPlan.items.map(item => ({ ...item }))
+      saveCartLocal()
+    } else if (cloudPlan && localItems.length > 0) {
+      // 两边都有 → 以较新的为准（云端为准）
+      cart.value = cloudPlan.items.map(item => ({ ...item }))
+      saveCartLocal()
+    }
+  }
+
+  // 计划变更时同步到云端
+  async function syncCartToCloud() {
+    if (!userInfo.value) return
+    const items = cart.value.filter(item => item.projectId)
+    const today = getToday()
+    const cloudPlan = planHistory.value.find(p => p.date === today)
+    if (cloudPlan) {
+      await supabase.from('plan_history').update({ items }).eq('id', cloudPlan.id)
+    } else if (items.length > 0) {
+      await supabase.from('plan_history').insert({ user_id: userInfo.value.id, items, date: today })
+      await loadPlanHistory()
+    }
+  }
+
   async function savePlanToHistory() {
     if (!userInfo.value) return
     const items = cart.value.filter(item => item.projectId)
@@ -620,6 +660,7 @@ export const useBilliardStore = defineStore('billiard', () => {
     startTraining, endTraining, cancelTraining, pauseTraining, resumeTraining, isTrainingPaused, getElapsedSeconds,
     recordShot, recordBatchShots, undoShot, getLiveStats,
     savePlanToHistory, restorePlanFromHistory, deletePlanHistory,
+    syncTodayPlan, syncCartToCloud,
     assignHomework, getStudentHomework, getCoachHomework, completeHomework, deleteHomework,
     addStudent, getStudentById, getOrGenCoachCode,
     getStats, getDailyMetrics, getToday, formatDate,
