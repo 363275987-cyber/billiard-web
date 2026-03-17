@@ -305,13 +305,13 @@ export const useBilliardStore = defineStore('billiard', () => {
   async function loadSquareProjects() {
     const { data } = await supabase
       .from('projects')
-      .select('*')
+      .select('*, profiles:nickname')
       .order('created_at', { ascending: false })
     if (data) {
       squareProjects.value = data.map(p => ({
         id: p.id, name: p.name, desc: p.description,
         category: p.category,
-        publisher: p.publisher_id ? '我' : '系统推荐',
+        publisher: p.publisher_id === userInfo.value?.id ? (userInfo.value?.nickName || '我') : (p.publisher_id && p.profiles ? p.profiles : '系统推荐'),
         publisherId: p.publisher_id,
         likes: p.likes || 0, favs: p.favs || 0, participants: p.participants || 0,
         videoUrl: p.video_url, createdAt: p.created_at?.slice(0, 10)
