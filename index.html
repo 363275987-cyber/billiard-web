@@ -2,12 +2,34 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- PWA -->
+    <meta name="theme-color" content="#2ecc71" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="台球训练" />
+    <link rel="manifest" href="/billiard-web/manifest.json" />
+    <link rel="apple-touch-icon" href="/billiard-web/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/billiard-web/favicon.png" />
+
     <title>台球训练记录</title>
+    <style>
+      /* 防止白屏闪烁 */
+      body { margin: 0; background: #fff; }
+      #app { min-height: 100vh; }
+    </style>
   </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
+    <script>
+      // 注册 Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/billiard-web/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
