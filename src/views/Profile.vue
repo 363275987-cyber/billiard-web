@@ -29,7 +29,10 @@
           <span class="input-icon">🔒</span>
           <input class="field" v-model="loginPwd" type="password" placeholder="密码" maxlength="32" />
         </div>
-        <button class="btn-primary" @click="handleLogin">登 录</button>
+        <button class="btn-primary" :disabled="loginLoading" @click="handleLogin">
+          <span v-if="loginLoading" class="btn-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+          <span v-else>登 录</span>
+        </button>
       </div>
 
       <!-- ===== 注册 ===== -->
@@ -49,7 +52,10 @@
             <span class="input-icon">🔒</span>
             <input class="field" v-model="regPwd2" type="password" placeholder="确认密码" maxlength="32" />
           </div>
-          <button class="btn-primary" @click="handleRegister">下一步</button>
+          <button class="btn-primary" :disabled="regLoading" @click="handleRegister">
+            <span v-if="regLoading" class="btn-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+            <span v-else>下一步</span>
+          </button>
         </template>
 
         <!-- Step 2: 基本信息 -->
@@ -196,10 +202,14 @@ const authTab = ref('login')
 const loginPhone = ref('')
 const loginPwd = ref('')
 
+const loginLoading = ref(false)
+
 async function handleLogin() {
   if (!/^1\d{10}$/.test(loginPhone.value)) { alert('请输入正确的11位手机号'); return }
   if (!loginPwd.value) { alert('请输入密码'); return }
+  loginLoading.value = true
   const res = await store.login(loginPhone.value.trim(), loginPwd.value)
+  loginLoading.value = false
   if (res.ok) {
     alert('登录成功 🎉')
     router.push('/')
@@ -220,11 +230,15 @@ const customAvatarUrl = ref('')
 const avatarInput = ref(null)
 const avatarBlobUrl = ref('') // cleanup
 
+const regLoading = ref(false)
+
 async function handleRegister() {
   if (!/^1\d{10}$/.test(regPhone.value)) { alert('请输入正确的11位手机号'); return }
   if (regPwd.value.length < 6) { alert('密码至少6位'); return }
   if (regPwd.value !== regPwd2.value) { alert('两次密码不一致'); return }
+  regLoading.value = true
   const res = await store.register(regPhone.value.trim(), regPwd.value)
+  regLoading.value = false
   if (!res.ok) { alert(res.msg); return }
   // 注册成功，进入第二步
   regStep.value = 2
@@ -380,6 +394,12 @@ onUnmounted(() => {
   box-shadow: 0 4px 16px rgba(46,204,113,0.3);
 }
 .btn-primary:active { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+.btn-loading { display: inline-flex; gap: 4px; align-items: center; justify-content: center; height: 16px; }
+.btn-loading .dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: bounce 1.2s infinite; }
+.btn-loading .dot:nth-child(2) { animation-delay: 0.15s; }
+.btn-loading .dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-8px)} }
 
 /* 头像选择 */
 .section-label { font-size: 13px; color: #999; font-weight: 600; margin-bottom: 8px; }
