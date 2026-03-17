@@ -305,18 +305,24 @@ export const useBilliardStore = defineStore('billiard', () => {
   async function loadSquareProjects() {
     const { data } = await supabase
       .from('projects')
-      .select('*, profiles!publisher_id(nickname)')
+      .select('*')
       .order('created_at', { ascending: false })
-    if (data) {
-      squareProjects.value = data.map(p => ({
-        id: p.id, name: p.name, desc: p.description,
-        category: p.category,
-        publisher: p.publisher_id === userInfo.value?.id ? (userInfo.value?.nickName || '我') : (p.profiles && p.profiles.nickname ? p.profiles.nickname : '系统推荐'),
-        publisherId: p.publisher_id,
-        likes: p.likes || 0, favs: p.favs || 0, participants: p.participants || 0,
-        videoUrl: p.video_url, createdAt: p.created_at?.slice(0, 10)
-      }))
+    if (!data) return
+    // 批量查发布者昵称
+    const pubIds = [...new Set(data.map(p => p.publisher_id).filter(Boolean))]
+    let pubMap = {}
+    if (pubIds.length) {
+      const { data: pfs } = await supabase.from('profiles').select('id, nickname').in('id', pubIds)
+      if (pfs) pubMap = Object.fromEntries(pfs.map(p => [p.id, p.nickname]))
     }
+    squareProjects.value = data.map(p => ({
+      id: p.id, name: p.name, desc: p.description,
+      category: p.category,
+      publisher: p.publisher_id === userInfo.value?.id ? (userInfo.value?.nickName || '我') : (pubMap[p.publisher_id] || '系统推荐'),
+      publisherId: p.publisher_id,
+      likes: p.likes || 0, favs: p.favs || 0, participants: p.participants || 0,
+      videoUrl: p.video_url, createdAt: p.created_at?.slice(0, 10)
+    }))
   }
 
   function getSquareProject(id) { return squareProjects.value.find(p => p.id === id) }
