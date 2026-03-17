@@ -162,7 +162,8 @@ function confirmAddPlan() {
 
 async function toggleFav(id) {
   if (!store.isLoggedIn) { alert('请先登录'); return }
-  await store.toggleFavProject(id)
+  const ok = await store.toggleFavProject(id)
+  if (!ok) alert('操作失败，请重试')
 }
 </script>
 

@@ -351,23 +351,21 @@ export const useBilliardStore = defineStore('billiard', () => {
     if (!userInfo.value) return false
     const idx = myFavProjectIds.value.indexOf(projectId)
     if (idx >= 0) {
-      await supabase.from('favorites').delete().eq('user_id', userInfo.value.id).eq('project_id', projectId)
-      myFavProjectIds.value.splice(idx, 1)
-      const p = squareProjects.value.find(p => p.id === projectId)
-      if (p && p.favs > 0) {
-        p.favs--
-        await supabase.rpc('project_unfav', { pid: projectId })
+      const { error } = await supabase.from('favorites').delete().eq('user_id', userInfo.value.id).eq('project_id', projectId)
+      if (!error) {
+        myFavProjectIds.value.splice(idx, 1)
+        const p = squareProjects.value.find(p => p.id === projectId)
+        if (p && p.favs > 0) { p.favs--; supabase.rpc('project_unfav', { pid: projectId }) }
       }
-      return false
+      return !error
     } else {
-      await supabase.from('favorites').insert({ user_id: userInfo.value.id, project_id: projectId })
-      myFavProjectIds.value.push(projectId)
-      const p = squareProjects.value.find(p => p.id === projectId)
-      if (p) {
-        p.favs++
-        await supabase.rpc('project_fav', { pid: projectId })
+      const { error } = await supabase.from('favorites').insert({ user_id: userInfo.value.id, project_id: projectId })
+      if (!error) {
+        myFavProjectIds.value.push(projectId)
+        const p = squareProjects.value.find(p => p.id === projectId)
+        if (p) { p.favs++; supabase.rpc('project_fav', { pid: projectId }) }
       }
-      return true
+      return !error
     }
   }
 
