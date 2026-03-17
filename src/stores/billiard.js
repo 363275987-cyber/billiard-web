@@ -272,6 +272,10 @@ export const useBilliardStore = defineStore('billiard', () => {
     }
     const { data, error } = await supabase.from('training_records').insert(row).select().single()
     if (data && !error) {
+      // 参与人数 +1
+      if (record.projectId) {
+        supabase.rpc('project_participate', { pid: record.projectId })
+      }
       records.value.unshift({
         id: data.id, projectId: data.project_id, project: data.project_name, projectName: data.project_name,
         date: data.date, duration: data.duration, totalShots: data.total_shots,
@@ -346,7 +350,7 @@ export const useBilliardStore = defineStore('billiard', () => {
       const p = squareProjects.value.find(p => p.id === projectId)
       if (p && p.favs > 0) {
         p.favs--
-        await supabase.from('projects').update({ favs: p.favs }).eq('id', projectId)
+        await supabase.rpc('project_unfav', { pid: projectId })
       }
       return false
     } else {
@@ -355,7 +359,7 @@ export const useBilliardStore = defineStore('billiard', () => {
       const p = squareProjects.value.find(p => p.id === projectId)
       if (p) {
         p.favs++
-        await supabase.from('projects').update({ favs: p.favs }).eq('id', projectId)
+        await supabase.rpc('project_fav', { pid: projectId })
       }
       return true
     }
@@ -371,7 +375,7 @@ export const useBilliardStore = defineStore('billiard', () => {
     const p = squareProjects.value.find(p => p.id === projectId)
     if (p) {
       p.likes++
-      await supabase.from('projects').update({ likes: p.likes }).eq('id', projectId)
+      await supabase.rpc('project_like', { pid: projectId })
     }
   }
 
