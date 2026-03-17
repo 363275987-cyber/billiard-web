@@ -137,7 +137,7 @@
         <div class="menu-item" v-if="store.isCoach">
           <span class="menu-icon">📝</span><span class="menu-text">布置作业</span><span class="menu-arrow">›</span>
         </div>
-        <div class="menu-item" v-if="store.isCoach" @click="$router.push('/admin')">
+        <div class="menu-item" v-if="store.isAdmin" @click="$router.push('/admin')">
           <span class="menu-icon">📊</span><span class="menu-text">管理后台</span><span class="menu-arrow">›</span>
         </div>
         <div class="menu-item danger" @click="handleLogout">

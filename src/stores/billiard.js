@@ -23,6 +23,7 @@ export const useBilliardStore = defineStore('billiard', () => {
 
   // ===== 计算属性 =====
   const isLoggedIn = computed(() => !!userInfo.value)
+  const isAdmin = computed(() => ['admin','coach'].includes(userInfo.value?.role))
   const isCoach = computed(() => userInfo.value?.role === 'coach')
 
   const myPublishedProjects = computed(() =>
@@ -599,7 +600,7 @@ export const useBilliardStore = defineStore('billiard', () => {
     userInfo, records, squareProjects, myFavProjectIds, myLikedProjectIds,
     planHistory, homework, students, cart, currentTraining, liveShots,
     recommendedPlans, initialized, loading,
-    isLoggedIn, isCoach, todayRecords, todaySummary, weekStreak,
+    isLoggedIn, isAdmin, isCoach, todayRecords, todaySummary, weekStreak,
     starredRecords, myFavList, myPublishedList, myPublishedProjects, myProjectList,
     init, loadAllData,
     register, login, logout, setUserInfo,
