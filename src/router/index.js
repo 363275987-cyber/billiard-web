@@ -14,6 +14,7 @@ const routes = [
   { path: '/square-detail/:id', name: 'SquareDetail', component: () => import('../views/SquareDetail.vue') },
   { path: '/my-projects', name: 'MyProjects', component: () => import('../views/MyProjects.vue') },
   { path: '/my-starred', name: 'MyStarred', component: () => import('../views/MyStarred.vue') },
+  { path: '/admin', name: 'Admin', component: () => import('../views/Admin.vue') },
 ]
 
 const router = createRouter({
