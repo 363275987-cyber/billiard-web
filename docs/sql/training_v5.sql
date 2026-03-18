@@ -80,7 +80,9 @@ CREATE POLICY "Users can update their own groups" ON training_groups FOR UPDATE 
 -- 5. 使用次数 RPC（科目被训练时 +1）
 CREATE OR REPLACE FUNCTION increment_subject_usage(subject_id UUID)
 RETURNS VOID AS $$
+BEGIN
   UPDATE training_subjects SET usage_count = COALESCE(usage_count, 0) + 1 WHERE id = subject_id;
+END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 6. 索引

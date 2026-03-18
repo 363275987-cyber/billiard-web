@@ -1,7 +1,7 @@
 <template>
   <div class="designer">
     <div class="designer-table">
-      <svg viewBox="0 0 254 127" class="table-svg" @pointerup.self="onTableClick" @pointermove.self="onTableDrag" @pointerup.self="onTableDrop">
+      <svg viewBox="0 0 254 127" class="table-svg" @pointerup.self="onTableDrop" @pointermove.self="onTableDrag">
         <!-- 台面 -->
         <rect x="0" y="0" width="254" height="127" fill="#0a6d32" rx="4"/>
         <!-- 库边 -->
@@ -32,7 +32,7 @@
            @pointerdown.stop.prevent="onBallPointerDown(idx, $event)" @pointermove.stop.prevent="onBallDrag(idx, $event)"
            @pointerup.stop.prevent="onBallDrop(idx)">
           <circle :cx="ball.x" :cy="ball.y" r="4.5" :fill="getBallColor(ball.number)"
-                  :stroke="selectedIdx === idx ? '#fff' : '#333'" :stroke-width="selectedIdx === idx ? 2 : 0.5"/>
+                  :stroke="selectedIdx === idx ? '#fff' : '#333'" :strokeWidth="selectedIdx === idx ? 2 : 0.5"/>
           <text v-if="ball.number > 0" :x="ball.x" :y="ball.y + 1.5" text-anchor="middle"
                 fill="#fff" font-size="5" font-weight="700">{{ball.number}}</text>
           <!-- 选中高亮 -->
@@ -66,7 +66,7 @@
           <svg viewBox="0 0 20 20" width="24" height="24">
             <circle cx="10" cy="10" r="8" :fill="getBallColor(n)" stroke="#333" stroke-width="0.5"/>
             <text v-if="n > 8" x="10" y="10.5" text-anchor="middle" fill="#fff" font-size="5" font-weight="700"
-                  :stroke="n >= 10 ? '#333' : 'transparent'" :stroke-width="0.3">{{n}}</text>
+                  :stroke="n >= 10 ? '#333' : 'transparent'" :strokeWidth="0.3">{{n}}</text>
             <text v-if="n <= 8 && n > 0" x="10" y="10.5" text-anchor="middle" fill="#fff" font-size="6" font-weight="700">{{n}}</text>
           </svg>
           <span>{{n}}号</span>
@@ -80,7 +80,7 @@
       <svg viewBox="0 0 20 20" width="36" height="36">
         <circle cx="10" cy="10" r="8" :fill="getBallColor(draggingNumber)" stroke="#333" stroke-width="0.5"/>
         <text v-if="draggingNumber > 8" x="10" y="10.5" text-anchor="middle" fill="#fff" font-size="5" font-weight="700"
-              :stroke="#333" :stroke-width="0.3">{{draggingNumber}}</text>
+              stroke="#333" strokeWidth="0.3">{{draggingNumber}}</text>
         <text v-if="draggingNumber <= 8 && draggingNumber > 0" x="10" y="10.5" text-anchor="middle" fill="#fff" font-size="6" font-weight="700">{{draggingNumber}}</text>
       </svg>
     </div>
