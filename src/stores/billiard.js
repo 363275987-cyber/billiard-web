@@ -21,6 +21,107 @@ export const useBilliardStore = defineStore('billiard', () => {
   const currentTraining = ref(JSON.parse(localStorage.getItem('bt_current_training') || 'null'))
   const liveShots = ref([])
 
+  // ===== v5 训练科目 =====
+  const trainingSubjects = ref([])
+
+  async function loadTrainingSubjects() {
+    try {
+      const { data, error } = await supabase
+        .from('training_subjects')
+        .select('*')
+        .eq('is_published', true)
+        .order('usage_count', { ascending: false })
+      if (error) { console.error('load training subjects error:', error); return }
+      trainingSubjects.value = data ? data.map(s => ({
+        id: s.id, name: s.name, description: s.description,
+        balls: s.balls || [],
+        hasPositionRating: s.has_position_rating,
+        successPotRate: s.success_pot_rate,
+        successPositionRate: s.success_position_rate,
+        shotsPerGroup: s.shots_per_group,
+        isTimed: s.is_timed,
+        difficulty: s.difficulty,
+        category: s.category,
+        publisherId: s.publisher_id,
+        usageCount: s.usage_count || 0,
+        createdAt: s.created_at
+      })) : []
+    } catch (e) { console.error('loadTrainingSubjects fatal:', e) }
+  }
+
+  async function publishSubject(subjectData) {
+    if (!userInfo.value) return
+    const row = {
+      name: subjectData.name,
+      description: subjectData.description || '',
+      balls: JSON.stringify(subjectData.balls),
+      has_position_rating: subjectData.hasPositionRating || false,
+      success_pot_rate: subjectData.successPotRate || 80,
+      success_position_rate: subjectData.successPositionRate || 60,
+      shots_per_group: subjectData.shotsPerGroup || 5,
+      is_timed: subjectData.isTimed || false,
+      difficulty: subjectData.difficulty || 'beginner',
+      category: subjectData.category || 'basic',
+      publisher_id: userInfo.value.id
+    }
+    const { data, error } = await supabase.from('training_subjects').insert(row).select().single()
+    if (data && !error) {
+      trainingSubjects.value.unshift({
+        id: data.id, name: data.name, description: data.description,
+        balls: data.balls,
+        hasPositionRating: data.has_position_rating,
+        successPotRate: data.success_pot_rate,
+        successPositionRate: data.success_position_rate,
+        shotsPerGroup: data.shots_per_group,
+        isTimed: data.is_timed,
+        difficulty: data.difficulty,
+        category: data.category,
+        publisherId: data.publisher_id,
+        usageCount: 0, createdAt: data.created_at
+      })
+      return true
+    }
+    console.error('publishSubject error:', error)
+    return false
+  }
+
+  async function saveTrainingSession(sessionData) {
+    if (!userInfo.value) return
+    const { data, error } = await supabase.from('training_sessions').insert({
+      user_id: userInfo.value.id,
+      subject_id: sessionData.subjectId,
+      group_ids: sessionData.groupIds,
+      group_count: sessionData.groupCount,
+      avg_pot_rate: sessionData.avgPotRate,
+      avg_position_rate: sessionData.avgPositionRate || null,
+      avg_shot_time: sessionData.avgShotTime,
+      best_consecutive: sessionData.bestConsecutive
+    }).select().single()
+    return data?.id
+  }
+
+  async function saveTrainingGroup(groupData) {
+    if (!userInfo.value) return
+    const { data, error } = await supabase.from('training_groups').insert({
+      user_id: userInfo.value.id,
+      subject_id: groupData.subjectId,
+      session_id: groupData.sessionId,
+      group_index: groupData.groupIndex,
+      shots: JSON.stringify(groupData.shots),
+      pot_rate: groupData.potRate,
+      position_rate: groupData.positionRate,
+      max_consecutive: groupData.maxConsecutive,
+      avg_shot_time: groupData.avgShotTime,
+      total_shots: groupData.totalShots,
+      total_pots: groupData.totalPots,
+      total_position_success: groupData.positionSuccess,
+      total_position_evaluated: groupData.positionEvaluated,
+      started_at: groupData.startedAt,
+      completed_at: groupData.completedAt
+    }).select().single()
+    return data?.id
+  }
+
   // ===== 计算属性 =====
   const isLoggedIn = computed(() => !!userInfo.value)
   const isAdmin = computed(() => ['admin','coach'].includes(userInfo.value?.role))
@@ -676,6 +777,8 @@ export const useBilliardStore = defineStore('billiard', () => {
     assignHomework, getStudentHomework, getCoachHomework, completeHomework, deleteHomework,
     addStudent, getStudentById, getOrGenCoachCode,
     getStats, getDailyMetrics, getToday, formatDate,
-    savePlan, saveLocal
+    savePlan, saveLocal,
+    // v5 训练科目
+    trainingSubjects, loadTrainingSubjects, publishSubject, saveTrainingSession, saveTrainingGroup
   }
 })

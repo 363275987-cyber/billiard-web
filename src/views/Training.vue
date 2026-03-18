@@ -110,6 +110,20 @@
         </div>
       </div>
 
+      <!-- v5 科目训练入口 -->
+      <div class="section" style="margin-bottom: 12px;">
+        <div class="section-title">
+          <div class="title-bar" style="background:linear-gradient(180deg,#9b59b6,#8e44ad)"></div>
+          <span>🎯 训练科目</span>
+          <span class="section-count">NEW</span>
+        </div>
+        <div class="rec-card" style="border-left: 3px solid #9b59b6" @click="$router.push('/square-subjects')">
+          <span class="rec-name">探索训练科目 →</span>
+          <span class="rec-desc">按分类浏览，球友发布的训练方案</span>
+          <button class="btn-load-rec" @click="$router.push('/square-subjects')">浏览</button>
+        </div>
+      </div>
+
       <!-- 推荐训练方案（计划为空时显示） -->
       <div class="section" v-if="planItems.length === 0 && studentHomework.length === 0">
         <div class="section-title">

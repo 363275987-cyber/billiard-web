@@ -15,6 +15,10 @@ const routes = [
   { path: '/my-projects', name: 'MyProjects', component: () => import('../views/MyProjects.vue') },
   { path: '/my-starred', name: 'MyStarred', component: () => import('../views/MyStarred.vue') },
   { path: '/admin', name: 'Admin', component: () => import('../views/Admin.vue') },
+  // v5 训练大师
+  { path: '/subject-create', name: 'SubjectCreate', component: () => import('../views/SubjectPublish.vue') },
+  { path: '/subject/:id', name: 'SubjectTrain', component: () => import('../views/SubjectTraining.vue') },
+  { path: '/square-subjects', name: 'SquareSubjects', component: () => import('../views/SubjectTraining.vue') },
 ]
 
 const router = createRouter({
