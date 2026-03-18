@@ -145,9 +145,12 @@ export const useBilliardStore = defineStore('billiard', () => {
       if (session?.user) {
         await loadUserProfile(session.user)
         await loadAllData()
-        await syncTodayPlan()
       }
       await loadSquareProjects()
+      // 云端同步放最后，不影响核心功能
+      if (session?.user) {
+        syncTodayPlan().catch(() => {})
+      }
     } catch (e) {
       console.error('Init error:', e)
     }
@@ -213,7 +216,7 @@ export const useBilliardStore = defineStore('billiard', () => {
     if (data.user) {
       await loadUserProfile(data.user)
       await loadAllData()
-      await syncTodayPlan()
+      syncTodayPlan().catch(() => {})
       return { ok: true }
     }
     return { ok: false, msg: '登录失败' }
