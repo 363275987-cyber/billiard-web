@@ -94,6 +94,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import BallLayoutDesigner from '../components/BallLayoutDesigner.vue'
+import { useBilliardStore } from '../stores/billiard'
 
 const router = useRouter()
 const store = useBilliardStore()
