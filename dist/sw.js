@@ -1,4 +1,4 @@
-const CACHE_NAME = 'billiard-train-v2';
+const CACHE_NAME = 'billiard-train-v3';
 const BASE = '/billiard-web/';
 
 // 安装时只缓存静态资源骨架
