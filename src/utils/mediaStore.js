@@ -69,10 +69,14 @@ export function compressImage(file, maxDim = 1280) {
       canvas.width = w
       canvas.height = h
       canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-      canvas.toBlob((blob) => {
-        URL.revokeObjectURL(img.src)
-        resolve(blob || file)
-      }, 'image/jpeg', 0.85)
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(img.src)
+          resolve(blob || file)
+        },
+        'image/jpeg',
+        0.85
+      )
     }
     img.onerror = () => resolve(file)
     img.src = URL.createObjectURL(file)
@@ -107,7 +111,9 @@ export function compressVideo(file, maxWidth = 1280) {
 
     // 超时保护（最多压缩 120 秒）
     const timeout = setTimeout(() => {
-      try { video.pause() } catch(e) {}
+      try {
+        video.pause()
+      } catch (e) {}
       URL.revokeObjectURL(video.src)
       resolve(file)
     }, 120000)
@@ -134,7 +140,7 @@ export function compressVideo(file, maxWidth = 1280) {
         const stream = canvas.captureStream(30)
         const recorder = new MediaRecorder(stream, {
           mimeType,
-          videoBitsPerSecond: 2000000 // 2Mbps → 720p 良好画质
+          videoBitsPerSecond: 2000000, // 2Mbps → 720p 良好画质
         })
         const chunks = []
         recorder.ondataavailable = (e) => {
@@ -154,7 +160,11 @@ export function compressVideo(file, maxWidth = 1280) {
         const draw = () => {
           if (video.ended || video.paused) {
             setTimeout(() => {
-              try { recorder.stop() } catch(e) { resolve(file) }
+              try {
+                recorder.stop()
+              } catch (e) {
+                resolve(file)
+              }
             }, 200)
             return
           }
@@ -162,7 +172,7 @@ export function compressVideo(file, maxWidth = 1280) {
           requestAnimationFrame(draw)
         }
         video.onplay = draw
-      } catch(e) {
+      } catch (e) {
         clearTimeout(timeout)
         URL.revokeObjectURL(video.src)
         resolve(file)

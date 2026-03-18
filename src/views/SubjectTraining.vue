@@ -9,8 +9,20 @@
 
       <!-- 预设分类筛选 -->
       <div class="category-bar">
-        <button :class="['cat-btn', { active: selectedCat === 'all' }]" @click="selectedCat = 'all'">全部</button>
-        <button v-for="cat in categories" :key="cat" :class="['cat-btn', { active: selectedCat === cat }]" @click="selectedCat = cat">{{ cat }}</button>
+        <button
+          :class="['cat-btn', { active: selectedCat === 'all' }]"
+          @click="selectedCat = 'all'"
+        >
+          全部
+        </button>
+        <button
+          v-for="cat in categories"
+          :key="cat"
+          :class="['cat-btn', { active: selectedCat === cat }]"
+          @click="selectedCat = cat"
+        >
+          {{ cat }}
+        </button>
       </div>
 
       <div v-if="store.loading" class="loading-wrap">
@@ -21,21 +33,39 @@
       <div v-else-if="subjects.length === 0" class="empty-state">
         <span class="empty-icon">📭</span>
         <p>暂无训练科目</p>
-        <button class="btn-link" @click="$router.push('/subject-create')">去发布一个 →</button>
+        <button class="btn-link" @click="$router.push('/subject-create')">
+          去发布一个 →
+        </button>
       </div>
 
       <div v-else class="subject-list">
-        <div class="card subject-card" v-for="sub in filteredSubjects" :key="sub.id" @click="startTraining(sub)">
+        <div
+          class="card subject-card"
+          v-for="sub in filteredSubjects"
+          :key="sub.id"
+          @click="startTraining(sub)"
+        >
           <div class="subject-top">
             <div class="subject-info">
               <span class="subject-name">{{ sub.name }}</span>
-              <span class="subject-meta">{{ sub.shots_per_group }}球/组 · {{ sub.difficulty === 'beginner' ? '入门' : sub.difficulty === 'intermediate' ? '进阶' : '高级' }}</span>
+              <span class="subject-meta"
+                >{{ sub.shots_per_group }}球/组 ·
+                {{
+                  sub.difficulty === 'beginner'
+                    ? '入门'
+                    : sub.difficulty === 'intermediate'
+                      ? '进阶'
+                      : '高级'
+                }}</span
+              >
             </div>
             <div class="subject-stats">
               <span class="usage-count">{{ sub.usage_count || 0 }}人练过</span>
             </div>
           </div>
-          <div class="subject-desc" v-if="sub.description">{{ sub.description }}</div>
+          <div class="subject-desc" v-if="sub.description">
+            {{ sub.description }}
+          </div>
           <div class="subject-tags">
             <span class="tag" v-if="sub.has_position_rating">🎯 有到位率</span>
             <span class="tag">{{ categoryLabel(sub.category) }}</span>
@@ -43,8 +73,10 @@
         </div>
       </div>
 
-      <div class="section" style="padding-bottom: 20px;">
-        <button class="btn-primary" @click="$router.push('/subject-create')">+ 发布新科目</button>
+      <div class="section" style="padding-bottom: 20px">
+        <button class="btn-primary" @click="$router.push('/subject-create')">
+          + 发布新科目
+        </button>
       </div>
     </template>
 
@@ -55,7 +87,9 @@
           <span class="train-name">{{ active.name }}</span>
           <span class="train-meta">
             第{{ groupCount }}组 · {{ active.shots_per_group }}球/组
-            <span v-if="active.has_position_rating" class="pos-badge">🎯 到位率</span>
+            <span v-if="active.has_position_rating" class="pos-badge"
+              >🎯 到位率</span
+            >
           </span>
         </div>
         <div class="train-actions-top">
@@ -71,13 +105,19 @@
         </div>
         <div class="live-stat-divider"></div>
         <div class="live-stat">
-          <span class="live-stat-num" :class="rateClass(currentGroup.potRate)">{{ currentGroup.potRate }}%</span>
+          <span class="live-stat-num" :class="rateClass(currentGroup.potRate)"
+            >{{ currentGroup.potRate }}%</span
+          >
           <span class="live-stat-label">进球率</span>
         </div>
         <div v-if="active.has_position_rating">
           <div class="live-stat-divider"></div>
           <div class="live-stat">
-            <span class="live-stat-num" :class="rateClass(currentGroup.positionRate)">{{ currentGroup.positionRate }}%</span>
+            <span
+              class="live-stat-num"
+              :class="rateClass(currentGroup.positionRate)"
+              >{{ currentGroup.positionRate }}%</span
+            >
             <span class="live-stat-label">到位率</span>
           </div>
         </div>
@@ -107,34 +147,56 @@
         <button class="btn-action miss" @click="recordShot(false)">
           ❌ 失误
         </button>
-        <button v-if="active.has_position_rating" class="btn-action position-fail" @click="recordPositionFail">
+        <button
+          v-if="active.has_position_rating"
+          class="btn-action position-fail"
+          @click="recordPositionFail"
+        >
           ⚠️ 走位失误
         </button>
       </div>
 
-      <div class="action-buttons" style="margin-top: 8px;">
+      <div class="action-buttons" style="margin-top: 8px">
         <button class="btn-secondary" @click="undoShot">↩️ 撤销</button>
         <button class="btn-complete" @click="completeGroup">🏁 完成本组</button>
       </div>
 
       <!-- 本组结果弹窗 -->
-      <div v-if="showGroupResult" class="modal-overlay" @click.self="showGroupResult = false">
+      <div
+        v-if="showGroupResult"
+        class="modal-overlay"
+        @click.self="showGroupResult = false"
+      >
         <div class="modal-content">
           <h3>📋 本组结果</h3>
           <div class="result-grid">
             <div class="result-item">
               <span class="result-label">进球</span>
-              <span class="result-value">{{ currentGroup.potted }}/{{ currentGroup.totalShots }}</span>
-              <span class="result-rate" :class="rateClass(currentGroup.potRate)">{{ currentGroup.potRate }}%</span>
+              <span class="result-value"
+                >{{ currentGroup.potted }}/{{ currentGroup.totalShots }}</span
+              >
+              <span class="result-rate" :class="rateClass(currentGroup.potRate)"
+                >{{ currentGroup.potRate }}%</span
+              >
             </div>
             <div v-if="active.has_position_rating" class="result-item">
               <span class="result-label">到位</span>
-              <span class="result-value">{{ currentGroup.positionSuccess }}/{{ currentGroup.positionEvaluated }}</span>
-              <span class="result-rate" :class="rateClass(currentGroup.positionRate)">{{ currentGroup.positionRate }}%</span>
+              <span class="result-value"
+                >{{ currentGroup.positionSuccess }}/{{
+                  currentGroup.positionEvaluated
+                }}</span
+              >
+              <span
+                class="result-rate"
+                :class="rateClass(currentGroup.positionRate)"
+                >{{ currentGroup.positionRate }}%</span
+              >
             </div>
             <div class="result-item">
               <span class="result-label">连进</span>
-              <span class="result-value">{{ currentGroup.maxConsecutive }}</span>
+              <span class="result-value">{{
+                currentGroup.maxConsecutive
+              }}</span>
             </div>
             <div class="result-item">
               <span class="result-label">均速</span>
@@ -142,14 +204,34 @@
             </div>
           </div>
           <div class="modal-buttons">
-            <button class="btn-secondary" @click="showGroupResult = false; resetForNext()">再来一组</button>
-            <button class="btn-primary" @click="showGroupResult = false; showSessionSummary = true">结束训练</button>
+            <button
+              class="btn-secondary"
+              @click="
+                showGroupResult = false
+                resetForNext()
+              "
+            >
+              再来一组
+            </button>
+            <button
+              class="btn-primary"
+              @click="
+                showGroupResult = false
+                showSessionSummary = true
+              "
+            >
+              结束训练
+            </button>
           </div>
         </div>
       </div>
 
       <!-- 训练总结弹窗 -->
-      <div v-if="showSessionSummary" class="modal-overlay" @click.self="showSessionSummary = false">
+      <div
+        v-if="showSessionSummary"
+        class="modal-overlay"
+        @click.self="showSessionSummary = false"
+      >
         <div class="modal-content summary-modal">
           <h3>📊 训练总结 — {{ active.name }}</h3>
           <div class="summary-grid">
@@ -159,22 +241,43 @@
             </div>
             <div class="summary-item">
               <span class="summary-label">平均进球率</span>
-              <span class="summary-value" :class="rateClass(sessionStats.avgPotRate)">{{ sessionStats.avgPotRate }}%</span>
+              <span
+                class="summary-value"
+                :class="rateClass(sessionStats.avgPotRate)"
+                >{{ sessionStats.avgPotRate }}%</span
+              >
             </div>
             <div v-if="active.has_position_rating" class="summary-item">
               <span class="summary-label">平均到位率</span>
-              <span class="summary-value" :class="rateClass(sessionStats.avgPositionRate)">{{ sessionStats.avgPositionRate }}%</span>
+              <span
+                class="summary-value"
+                :class="rateClass(sessionStats.avgPositionRate)"
+                >{{ sessionStats.avgPositionRate }}%</span
+              >
             </div>
             <div class="summary-item">
               <span class="summary-label">最高连进</span>
-              <span class="summary-value">{{ sessionStats.bestConsecutive }}</span>
+              <span class="summary-value">{{
+                sessionStats.bestConsecutive
+              }}</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">平均出杆</span>
-              <span class="summary-value">{{ sessionStats.avgShotTime }}秒</span>
+              <span class="summary-value"
+                >{{ sessionStats.avgShotTime }}秒</span
+              >
             </div>
           </div>
-          <button class="btn-primary" style="margin-top: 16px" @click="showSessionSummary = false; finishTraining()">确认保存</button>
+          <button
+            class="btn-primary"
+            style="margin-top: 16px"
+            @click="
+              showSessionSummary = false
+              finishTraining()
+            "
+          >
+            确认保存
+          </button>
         </div>
       </div>
     </template>
@@ -193,11 +296,17 @@ const store = useBilliardStore()
 const subjects = ref([])
 const selectedCat = ref('all')
 const categories = ['basic', 'angle', 'position', 'combo', 'other']
-const categoryLabels = { basic: '基础', angle: '角度球', position: '走位', combo: '组合', other: '其他' }
+const categoryLabels = {
+  basic: '基础',
+  angle: '角度球',
+  position: '走位',
+  combo: '组合',
+  other: '其他',
+}
 
 const filteredSubjects = computed(() => {
   if (selectedCat.value === 'all') return subjects.value
-  return subjects.value.filter(s => s.category === selectedCat.value)
+  return subjects.value.filter((s) => s.category === selectedCat.value)
 })
 
 // 训练状态
@@ -220,12 +329,18 @@ const currentGroup = reactive({
   positionFail: 0,
   positionEvaluated: 0,
   startTime: null,
-  avgShotTime: 0
+  avgShotTime: 0,
 })
 
 // 会话统计
 const sessionStats = computed(() => {
-  if (groupCount.value === 0) return { avgPotRate: 0, avgPositionRate: 0, avgShotTime: 0, bestConsecutive: 0 }
+  if (groupCount.value === 0)
+    return {
+      avgPotRate: 0,
+      avgPositionRate: 0,
+      avgShotTime: 0,
+      bestConsecutive: 0,
+    }
   const groups = completedGroups.value
   const totalPots = groups.reduce((s, g) => s + g.potted, 0)
   const totalShots = groups.reduce((s, g) => s + g.totalShots, 0)
@@ -233,10 +348,11 @@ const sessionStats = computed(() => {
   const totalPosSuc = groups.reduce((s, g) => s + g.positionSuccess, 0)
   const totalTime = groups.reduce((s, g) => s + g.totalTime, 0)
   return {
-    avgPotRate: totalShots > 0 ? Math.round(totalPots / totalShots * 100) : 0,
-    avgPositionRate: totalPosEval > 0 ? Math.round(totalPosSuc / totalPosEval * 100) : 0,
+    avgPotRate: totalShots > 0 ? Math.round((totalPots / totalShots) * 100) : 0,
+    avgPositionRate:
+      totalPosEval > 0 ? Math.round((totalPosSuc / totalPosEval) * 100) : 0,
     avgShotTime: groups.length > 0 ? Math.round(totalTime / groups.length) : 0,
-    bestConsecutive: Math.max(...groups.map(g => g.maxConsecutive), 0)
+    bestConsecutive: Math.max(...groups.map((g) => g.maxConsecutive), 0),
   }
 })
 
@@ -248,14 +364,23 @@ function getGroupSnapshot() {
   return {
     potted: currentGroup.potted,
     totalShots: currentGroup.totalShots,
-    potRate: currentGroup.totalShots > 0 ? Math.round(currentGroup.potted / currentGroup.totalShots * 100) : 0,
-    positionRate: currentGroup.positionEvaluated > 0 ? Math.round(currentGroup.positionSuccess / currentGroup.positionEvaluated * 100) : 0,
+    potRate:
+      currentGroup.totalShots > 0
+        ? Math.round((currentGroup.potted / currentGroup.totalShots) * 100)
+        : 0,
+    positionRate:
+      currentGroup.positionEvaluated > 0
+        ? Math.round(
+            (currentGroup.positionSuccess / currentGroup.positionEvaluated) *
+              100
+          )
+        : 0,
     maxConsecutive: currentGroup.maxConsecutive,
     avgShotTime: currentGroup.avgShotTime,
     positionSuccess: currentGroup.positionSuccess,
     positionFail: currentGroup.positionFail,
     positionEvaluated: currentGroup.positionEvaluated,
-    totalTime: currentGroup.totalTime || 0
+    totalTime: currentGroup.totalTime || 0,
   }
 }
 
@@ -264,8 +389,13 @@ function rateClass(rate) {
 }
 
 onMounted(async () => {
-  await store.loadTrainingSubjects()
-  subjects.value = store.trainingSubjects
+  try {
+    await store.loadTrainingSubjects()
+    subjects.value = store.trainingSubjects || []
+  } catch (e) {
+    console.error('loadTrainingSubjects error:', e)
+    subjects.value = []
+  }
 })
 
 function startTraining(sub) {
@@ -282,12 +412,22 @@ function recordShot(hit) {
     const prevTime = currentGroup.shots[currentGroup.shots.length - 1].timestamp
     const shotTime = Math.round((now - prevTime) / 1000)
     if (shotTime < 5) return // 排除异常（太短说明是误触）
-    currentGroup.avgShotTime = currentGroup.avgShotTime === 0
-      ? shotTime
-      : Math.round((currentGroup.avgShotTime * (currentGroup.shots.length - 1) + shotTime) / currentGroup.shots.length)
+    currentGroup.avgShotTime =
+      currentGroup.avgShotTime === 0
+        ? shotTime
+        : Math.round(
+            (currentGroup.avgShotTime * (currentGroup.shots.length - 1) +
+              shotTime) /
+              currentGroup.shots.length
+          )
   }
 
-  currentGroup.shots.push({ potted: hit, positionResult: null, timestamp: now, shotTime: 0 })
+  currentGroup.shots.push({
+    potted: hit,
+    positionResult: null,
+    timestamp: now,
+    shotTime: 0,
+  })
   currentGroup.totalShots++
 
   if (hit) {
@@ -352,17 +492,23 @@ function undoShot() {
 }
 
 function recalcConsecutive() {
-  let max = 0, cur = 0
+  let max = 0,
+    cur = 0
   for (const s of currentGroup.shots) {
-    if (s.potted) { cur++; max = Math.max(max, cur) }
-    else { cur = 0 }
+    if (s.potted) {
+      cur++
+      max = Math.max(max, cur)
+    } else {
+      cur = 0
+    }
   }
   currentGroup.maxConsecutive = max
   currentGroup.consecutive = cur
 }
 
 function recalcPositions() {
-  let success = 0, evaluated = 0
+  let success = 0,
+    evaluated = 0
   for (const s of currentGroup.shots) {
     if (s.potted && s.positionResult === 'success') success++
     if (s.potted && s.positionResult) evaluated++
@@ -373,12 +519,21 @@ function recalcPositions() {
 }
 
 function recalcAvgShotTime() {
-  if (currentGroup.shots.length < 2) { currentGroup.avgShotTime = 0; return }
-  let total = 0, count = 0
+  if (currentGroup.shots.length < 2) {
+    currentGroup.avgShotTime = 0
+    return
+  }
+  let total = 0,
+    count = 0
   for (let i = 1; i < currentGroup.shots.length; i++) {
     const prev = currentGroup.shots[i - 1]
-    const diff = (new Date(currentGroup.shots[i].timestamp) - new Date(prev.timestamp)) / 1000
-    if (diff > 5) { total += diff; count++ }
+    const diff =
+      (new Date(currentGroup.shots[i].timestamp) - new Date(prev.timestamp)) /
+      1000
+    if (diff > 5) {
+      total += diff
+      count++
+    }
   }
   currentGroup.avgShotTime = count > 0 ? Math.round(total / count) : 0
 }
@@ -393,10 +548,19 @@ function completeGroup() {
     pendingPosition.value = false
   }
   currentGroup.completed = true
-  currentGroup.potRate = currentGroup.totalShots > 0 ? Math.round(currentGroup.potted / currentGroup.totalShots * 100) : 0
-  currentGroup.positionRate = currentGroup.positionEvaluated > 0 ? Math.round(currentGroup.positionSuccess / currentGroup.positionEvaluated * 100) : 0
+  currentGroup.potRate =
+    currentGroup.totalShots > 0
+      ? Math.round((currentGroup.potted / currentGroup.totalShots) * 100)
+      : 0
+  currentGroup.positionRate =
+    currentGroup.positionEvaluated > 0
+      ? Math.round(
+          (currentGroup.positionSuccess / currentGroup.positionEvaluated) * 100
+        )
+      : 0
   currentGroup.endTime = Date.now()
-  currentGroup.totalTime = (currentGroup.endTime - currentGroup.startTime) / 1000
+  currentGroup.totalTime =
+    (currentGroup.endTime - currentGroup.startTime) / 1000
 
   groupCount.value++
   showGroupResult.value = true
@@ -476,7 +640,9 @@ onBeforeRouteLeave(() => {
 
 .subject-card {
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 
 .subject-card:active {
@@ -531,7 +697,7 @@ onBeforeRouteLeave(() => {
 .tag {
   font-size: 11px;
   padding: 2px 8px;
-  background: rgba(46,204,113,0.1);
+  background: rgba(46, 204, 113, 0.1);
   color: var(--keep-green-dark);
   border-radius: 10px;
   font-weight: 500;
@@ -588,7 +754,7 @@ onBeforeRouteLeave(() => {
 
 .pos-badge {
   display: inline-block;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   padding: 1px 8px;
   border-radius: 10px;
   font-size: 11px;
@@ -603,7 +769,7 @@ onBeforeRouteLeave(() => {
 .btn-text {
   background: none;
   border: none;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
   cursor: pointer;
   padding: 4px 8px;
@@ -632,9 +798,15 @@ onBeforeRouteLeave(() => {
   color: #1a1a2e;
 }
 
-.live-stat-num.good { color: var(--keep-green); }
-.live-stat-num.mid { color: #f39c12; }
-.live-stat-num.bad { color: #e74c3c; }
+.live-stat-num.good {
+  color: var(--keep-green);
+}
+.live-stat-num.mid {
+  color: #f39c12;
+}
+.live-stat-num.bad {
+  color: #e74c3c;
+}
 
 .live-stat-label {
   font-size: 11px;
@@ -655,7 +827,7 @@ onBeforeRouteLeave(() => {
   gap: 6px;
   padding: 8px 12px;
   margin: 0 12px;
-  background: rgba(255,193,7,0.1);
+  background: rgba(255, 193, 7, 0.1);
   border-radius: 10px;
   font-size: 12px;
   color: #b8860b;
@@ -666,8 +838,13 @@ onBeforeRouteLeave(() => {
 }
 
 @keyframes blink {
-  0%,100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* 操作按钮 */
@@ -689,24 +866,26 @@ onBeforeRouteLeave(() => {
   transition: opacity 0.15s;
 }
 
-.btn-action:active { opacity: 0.85; }
+.btn-action:active {
+  opacity: 0.85;
+}
 
 .btn-action.hit {
   background: var(--keep-green);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(46,204,113,0.35);
+  box-shadow: 0 4px 14px rgba(46, 204, 113, 0.35);
 }
 
 .btn-action.miss {
   background: #e74c3c;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(231,76,60,0.3);
+  box-shadow: 0 4px 14px rgba(231, 76, 60, 0.3);
 }
 
 .btn-action.position-fail {
   background: #f39c12;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(243,156,18,0.3);
+  box-shadow: 0 4px 14px rgba(243, 156, 18, 0.3);
 }
 
 .btn-secondary {
@@ -730,14 +909,17 @@ onBeforeRouteLeave(() => {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(52,152,219,0.35);
+  box-shadow: 0 4px 14px rgba(52, 152, 219, 0.35);
 }
 
 /* 弹窗 */
 .modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -797,9 +979,15 @@ onBeforeRouteLeave(() => {
   font-weight: 600;
 }
 
-.result-rate.good { color: var(--keep-green); }
-.result-rate.mid { color: #f39c12; }
-.result-rate.bad { color: #e74c3c; }
+.result-rate.good {
+  color: var(--keep-green);
+}
+.result-rate.mid {
+  color: #f39c12;
+}
+.result-rate.bad {
+  color: #e74c3c;
+}
 
 .modal-buttons {
   display: flex;
@@ -832,12 +1020,17 @@ onBeforeRouteLeave(() => {
   color: #1a1a2e;
 }
 
-.summary-value.good { color: var(--keep-green); }
-.summary-value.mid { color: #f39c12; }
-.summary-value.bad { color: #e74c3c; }
+.summary-value.good {
+  color: var(--keep-green);
+}
+.summary-value.mid {
+  color: #f39c12;
+}
+.summary-value.bad {
+  color: #e74c3c;
+}
 
 .summary-modal {
   max-width: 360px;
 }
 </style>
-

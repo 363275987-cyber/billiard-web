@@ -9,29 +9,60 @@
       <div class="card">
         <div class="form-group">
           <label>科目名称</label>
-          <input v-model="form.name" class="form-input" placeholder="例如：5球直线球连进" maxlength="30"/>
+          <input
+            v-model="form.name"
+            class="form-input"
+            placeholder="例如：5球直线球连进"
+            maxlength="30"
+          />
         </div>
         <div class="form-group">
           <label>科目描述</label>
-          <textarea v-model="form.description" class="form-textarea" placeholder="描述训练要点..." rows="2" maxlength="200"></textarea>
+          <textarea
+            v-model="form.description"
+            class="form-textarea"
+            placeholder="描述训练要点..."
+            rows="2"
+            maxlength="200"
+          ></textarea>
         </div>
 
         <div class="form-group">
           <label>球形设计</label>
-          <div class="designer-hint">点击下方球放置到台面上，点击台面上的球可拖动</div>
-          <BallLayoutDesigner v-model="form.balls"/>
+          <div class="designer-hint">
+            点击下方球放置到台面上，点击台面上的球可拖动
+          </div>
+          <BallLayoutDesigner v-model="form.balls" />
         </div>
 
         <div class="form-row">
-          <div class="form-group" style="flex:1">
+          <div class="form-group" style="flex: 1">
             <label>难度</label>
             <div class="segment-control">
-              <button :class="['seg-btn', { active: form.difficulty === 'beginner' }]" @click="form.difficulty = 'beginner'">入门</button>
-              <button :class="['seg-btn', { active: form.difficulty === 'intermediate' }]" @click="form.difficulty = 'intermediate'">进阶</button>
-              <button :class="['seg-btn', { active: form.difficulty === 'advanced' }]" @click="form.difficulty = 'advanced'">高级</button>
+              <button
+                :class="['seg-btn', { active: form.difficulty === 'beginner' }]"
+                @click="form.difficulty = 'beginner'"
+              >
+                入门
+              </button>
+              <button
+                :class="[
+                  'seg-btn',
+                  { active: form.difficulty === 'intermediate' },
+                ]"
+                @click="form.difficulty = 'intermediate'"
+              >
+                进阶
+              </button>
+              <button
+                :class="['seg-btn', { active: form.difficulty === 'advanced' }]"
+                @click="form.difficulty = 'advanced'"
+              >
+                高级
+              </button>
             </div>
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group" style="flex: 1">
             <label>分类</label>
             <select v-model="form.category" class="form-input">
               <option value="basic">基础</option>
@@ -45,14 +76,20 @@
 
         <div class="form-group">
           <label>每组球数</label>
-          <input v-model.number="form.shotsPerGroup" type="number" class="form-input" min="1" max="15"/>
+          <input
+            v-model.number="form.shotsPerGroup"
+            type="number"
+            class="form-input"
+            min="1"
+            max="15"
+          />
         </div>
 
         <!-- 到位率开关 -->
         <div class="toggle-row">
           <span class="toggle-label">开启到位率要求</span>
           <label class="toggle">
-            <input type="checkbox" v-model="form.hasPositionRating"/>
+            <input type="checkbox" v-model="form.hasPositionRating" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -61,24 +98,46 @@
         <div v-if="form.hasPositionRating" class="success-conditions">
           <div class="form-group">
             <label>进球率达标 (%)</label>
-            <input v-model.number="form.successPotRate" type="number" class="form-input" min="0" max="100"/>
+            <input
+              v-model.number="form.successPotRate"
+              type="number"
+              class="form-input"
+              min="0"
+              max="100"
+            />
           </div>
           <div class="form-group">
             <label>到位率达标 (%)</label>
-            <input v-model.number="form.successPositionRate" type="number" class="form-input" min="0" max="100"/>
+            <input
+              v-model.number="form.successPositionRate"
+              type="number"
+              class="form-input"
+              min="0"
+              max="100"
+            />
           </div>
         </div>
         <div v-else class="success-conditions">
           <div class="form-group">
             <label>进球率达标 (%)</label>
-            <input v-model.number="form.successPotRate" type="number" class="form-input" min="0" max="100"/>
+            <input
+              v-model.number="form.successPotRate"
+              type="number"
+              class="form-input"
+              min="0"
+              max="100"
+            />
           </div>
         </div>
       </div>
     </div>
 
-    <div class="section" style="padding-bottom: 20px;">
-      <button class="btn-primary" :disabled="!canPublish" @click="handlePublish">
+    <div class="section" style="padding-bottom: 20px">
+      <button
+        class="btn-primary"
+        :disabled="!canPublish"
+        @click="handlePublish"
+      >
         🚀 发布科目
       </button>
     </div>
@@ -108,13 +167,17 @@ const form = ref({
   shotsPerGroup: 5,
   hasPositionRating: false,
   successPotRate: 80,
-  successPositionRate: 60
+  successPositionRate: 60,
 })
 
 const published = ref(false)
 
 const canPublish = computed(() => {
-  return form.value.name.trim() && form.value.balls.length >= 1 && form.value.shotsPerGroup >= 1
+  return (
+    form.value.name.trim() &&
+    form.value.balls.length >= 1 &&
+    form.value.shotsPerGroup >= 1
+  )
 })
 
 async function handlePublish() {
@@ -210,7 +273,7 @@ async function handlePublish() {
   background: #fff;
   color: var(--keep-green);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-row {
@@ -261,7 +324,7 @@ async function handlePublish() {
   background: #fff;
   border-radius: 50%;
   transition: 0.3s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .toggle input:checked + .toggle-slider {
@@ -273,7 +336,7 @@ async function handlePublish() {
 }
 
 .success-conditions {
-  background: rgba(46,204,113,0.05);
+  background: rgba(46, 204, 113, 0.05);
   border-radius: 10px;
   padding: 8px 12px;
   margin-top: -4px;
@@ -285,7 +348,7 @@ async function handlePublish() {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0,0,0,0.8);
+  background: rgba(0, 0, 0, 0.8);
   color: #fff;
   padding: 16px 24px;
   border-radius: 12px;
@@ -296,8 +359,13 @@ async function handlePublish() {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 </style>
-

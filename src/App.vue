@@ -34,8 +34,16 @@ const store = useBilliardStore()
 onMounted(() => {
   store.init()
 })
-const hideOn = ['/detail', '/record', '/square-detail', '/my-projects', '/my-starred', '/publish', '/plan']
-const showTabBar = computed(() => !hideOn.some(p => route.path.startsWith(p)))
+const hideOn = [
+  '/detail',
+  '/record',
+  '/square-detail',
+  '/my-projects',
+  '/my-starred',
+  '/publish',
+  '/plan',
+]
+const showTabBar = computed(() => !hideOn.some((p) => route.path.startsWith(p)))
 </script>
 
 <style scoped>
