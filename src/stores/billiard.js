@@ -308,26 +308,35 @@ export const useBilliardStore = defineStore('billiard', () => {
 
   // ===== 广场项目 =====
   async function loadSquareProjects() {
-    const { data } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (!data) return
-    // 批量查发布者昵称
-    const pubIds = [...new Set(data.map(p => p.publisher_id).filter(Boolean))]
-    let pubMap = {}
-    if (pubIds.length) {
-      const { data: pfs } = await supabase.from('profiles').select('id, nickname').in('id', pubIds)
-      if (pfs) pubMap = Object.fromEntries(pfs.map(p => [p.id, p.nickname]))
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) { console.error('square load error:', error); return }
+      if (!data || !data.length) { squareProjects.value = []; return }
+
+      // 批量查发布者昵称，失败不影响项目列表
+      let pubMap = {}
+      try {
+        const pubIds = [...new Set(data.map(p => p.publisher_id).filter(Boolean))]
+        if (pubIds.length) {
+          const { data: pfs } = await supabase.from('profiles').select('id, nickname').in('id', pubIds)
+          if (pfs) pubMap = Object.fromEntries(pfs.map(p => [p.id, p.nickname]))
+        }
+      } catch (e) { console.warn('publisher names failed:', e) }
+
+      squareProjects.value = data.map(p => ({
+        id: p.id, name: p.name, desc: p.description,
+        category: p.category,
+        publisher: p.publisher_id === userInfo.value?.id ? (userInfo.value?.nickName || '我') : (pubMap[p.publisher_id] || '系统推荐'),
+        publisherId: p.publisher_id,
+        likes: p.likes || 0, favs: p.favs || 0, participants: p.participants || 0,
+        videoUrl: p.video_url, createdAt: p.created_at?.slice(0, 10)
+      }))
+    } catch (e) {
+      console.error('loadSquareProjects fatal:', e)
     }
-    squareProjects.value = data.map(p => ({
-      id: p.id, name: p.name, desc: p.description,
-      category: p.category,
-      publisher: p.publisher_id === userInfo.value?.id ? (userInfo.value?.nickName || '我') : (pubMap[p.publisher_id] || '系统推荐'),
-      publisherId: p.publisher_id,
-      likes: p.likes || 0, favs: p.favs || 0, participants: p.participants || 0,
-      videoUrl: p.video_url, createdAt: p.created_at?.slice(0, 10)
-    }))
   }
 
   function getSquareProject(id) { return squareProjects.value.find(p => p.id === id) }
