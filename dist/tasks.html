@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>靓仔上课 · 待办事项看板</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --card: #1a1a24;
+    --card-hover: #22222f;
+    --border: #2a2a3a;
+    --text: #e8e8f0;
+    --text-dim: #8888a0;
+    --accent: #00e68a;
+    --accent-dim: rgba(0,230,138,0.12);
+    --wang: #ff6b4a;
+    --wang-dim: rgba(255,107,74,0.12);
+    --kai: #5b8cff;
+    --kai-dim: rgba(91,140,255,0.12);
+    --chao: #ffb84d;
+    --chao-dim: rgba(255,184,77,0.12);
+    --high: #ff4757;
+    --mid: #ffa502;
+    --low: #2ed573;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  
+  body {
+    font-family: 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* 背景装饰 */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,230,138,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -200px; left: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(91,140,255,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-label {
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .header h1 {
+    font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .header p {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .header-meta {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .header-meta span {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .header-meta strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* 统计卡片 */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* 筛选栏 */
+  .filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 18px;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .filter-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .filter-btn.active[data-filter="老王"] {
+    background: var(--wang-dim);
+    border-color: var(--wang);
+    color: var(--wang);
+  }
+  .filter-btn.active[data-filter="凯哥"] {
+    background: var(--kai-dim);
+    border-color: var(--kai);
+    color: var(--kai);
+  }
+  .filter-btn.active[data-filter="党超"] {
+    background: var(--chao-dim);
+    border-color: var(--chao);
+    color: var(--chao);
+  }
+  .filter-btn.active[data-filter="已完成"] {
+    background: rgba(46,213,115,0.12);
+    border-color: var(--low);
+    color: var(--low);
+  }
+
+  /* 分类标题 */
+  .section-title {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 32px 0 16px;
+    padding-left: 2px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* 任务卡片 */
+  .task-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .task-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transition: all 0.2s;
+    cursor: default;
+    animation: fadeIn 0.3s ease both;
+  }
+  .task-card:hover {
+    background: var(--card-hover);
+    border-color: #3a3a4f;
+    transform: translateY(-1px);
+  }
+  .task-card.done {
+    opacity: 0.45;
+  }
+  .task-card.done .task-title {
+    text-decoration: line-through;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .task-check {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-top: 1px;
+  }
+  .task-check:hover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .task-check.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .task-check.checked::after {
+    content: '✓';
+    color: var(--bg);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .task-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .task-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .task-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .task-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .tag {
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .tag-executor {
+    font-weight: 600;
+  }
+  .tag-executor.wang { background: var(--wang-dim); color: var(--wang); }
+  .tag-executor.kai { background: var(--kai-dim); color: var(--kai); }
+  .tag-executor.chao { background: var(--chao-dim); color: var(--chao); }
+  .tag-priority { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+  .tag-priority.high { background: rgba(255,71,87,0.15); color: var(--high); }
+  .tag-priority.mid { background: rgba(255,165,2,0.15); color: var(--mid); }
+  .tag-priority.low { background: rgba(46,213,115,0.15); color: var(--low); }
+  .tag-date { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+
+  .task-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+
+  /* 进度条 */
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 2px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00b4d8);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  .progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  /* 空状态 */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  /* 底部 */
+  .footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* 响应式 */
+  @media (max-width: 640px) {
+    .container { padding: 24px 16px 60px; }
+    .header h1 { font-size: 24px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .task-card { padding: 14px 16px; gap: 10px; }
+    .task-title { font-size: 14px; }
+    .filters { gap: 6px; }
+    .filter-btn { padding: 6px 14px; font-size: 12px; }
+  }
+
+  /* 搜索框 */
+  .search-box {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-box input::placeholder { color: var(--text-dim); }
+  .search-box input:focus { border-color: var(--accent); }
+  .search-box svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-label">PROJECT KANBAN</div>
+    <h1>待办事项看板</h1>
+    <p>3月22日聚餐会议 · 老王 × 凯哥 × 党超<br>会议录音整理，所有待办事项追踪</p>
+    <div class="header-meta">
+      <span>📅 2026-03-22 创建</span>
+      <span>👥 <strong>3</strong> 位执行人</span>
+      <span>📋 <strong id="totalCount">0</strong> 项任务</span>
+    </div>
+  </div>
+
+  <!-- 统计 -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--high)" id="highCount">0</div>
+      <div class="stat-label">🔴 紧急</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--wang)" id="wangCount">0</div>
+      <div class="stat-label">老王</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--kai)" id="kaiCount">0</div>
+      <div class="stat-label">凯哥</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--chao)" id="chaoCount">0</div>
+      <div class="stat-label">党超</div>
+    </div>
+  </div>
+
+  <!-- 进度 -->
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-text">
+    <span>完成进度</span>
+    <span id="progressText">0 / 0</span>
+  </div>
+
+  <!-- 搜索 -->
+  <div class="search-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="text" id="searchInput" placeholder="搜索任务...">
+  </div>
+
+  <!-- 筛选 -->
+  <div class="filters">
+    <button class="filter-btn active" data-filter="全部">全部</button>
+    <button class="filter-btn" data-filter="老王">🔴 老王</button>
+    <button class="filter-btn" data-filter="凯哥">🔵 凯哥</button>
+    <button class="filter-btn" data-filter="党超">🟡 党超</button>
+    <button class="filter-btn" data-filter="已完成">✅ 已完成</button>
+  </div>
+
+  <!-- 任务列表 -->
+  <div id="taskList"></div>
+
+  <!-- 底部 -->
+  <div class="footer">
+    靓仔上课 · 战略看板 · 数据自动同步至 localStorage
+  </div>
+</div>
+
+<script>
+const tasks = [
+  // ===== 人事任命 =====
+  {
+    id: 1,
+    title: "发送党超副总经理任命函到公司群",
+    executor: "凯哥",
+    priority: "high",
+    date: "3月23日",
+    category: "人事任命",
+    desc: "正式任命函已写好，发到公司群宣布。包含党超负责的部门清单。",
+    done: false
+  },
+  {
+    id: 2,
+    title: "跟畅经理谈话 — 明确4月27日离开",
+    executor: "凯哥",
+    priority: "high",
+    date: "3月23日",
+    category: "人事任命",
+    desc: "任命函发出后立即谈话。4月27日合同到期不续签。指出他四年来的问题：IT系统没做好、财务报表没做好、对下属推卸责任。",
+    done: false
+  },
+  {
+    id: 3,
+    title: "告诉畅经理受党总和袁总管理",
+    executor: "凯哥",
+    priority: "high",
+    date: "3月23日",
+    category: "人事任命",
+    desc: "明确上下级关系，畅经理的话代表凯哥的话。",
+    done: false
+  },
+  {
+    id: 4,
+    title: "袁总接受向党总汇报的安排",
+    executor: "凯哥",
+    priority: "mid",
+    date: "3月23日",
+    category: "人事任命",
+    desc: "已跟袁总沟通好，袁总也同意降级。",
+    done: false
+  },
+
+  // ===== 剪辑部 =====
+  {
+    id: 5,
+    title: "剪辑部压力测试 — 三个都上压力",
+    executor: "党超",
+    priority: "high",
+    date: "3月-4月",
+    category: "剪辑部",
+    desc: "对王鹏、小鱼、阿辉三人同时上绩效压力。每天把几秒颗粒度全给他们定上。看谁扛不住走人。",
+    done: false
+  },
+  {
+    id: 6,
+    title: "阿辉作品顶到月底",
+    executor: "党超",
+    priority: "mid",
+    date: "3月底",
+    category: "剪辑部",
+    desc: "阿辉说把作品顶到月底就走，月底后上压力。",
+    done: false
+  },
+
+  // ===== 选手签约 =====
+  {
+    id: 7,
+    title: "严敏涛下次来涨价到14,000",
+    executor: "老王",
+    priority: "high",
+    date: "近期",
+    category: "选手签约",
+    desc: "从13,000涨到14,000。用抬价策略锁住选手，同时把其他家成本抬高。",
+    done: false
+  },
+  {
+    id: 8,
+    title: "李宝宝同步涨价",
+    executor: "老王",
+    priority: "high",
+    date: "近期",
+    category: "选手签约",
+    desc: "李宝宝也已到13,000，下次继续涨。关键是他们回复慢的时候就开始涨价。",
+    done: false
+  },
+  {
+    id: 9,
+    title: "周栋测试 — 已报10,000",
+    executor: "老王",
+    priority: "mid",
+    date: "近期",
+    category: "选手签约",
+    desc: "周栋从苏丹红5000涨到我们1万。同步说这孩子不错、转化好。如果效果好变成第三个名额。",
+    done: false
+  },
+  {
+    id: 10,
+    title: "测试周赛模式",
+    executor: "老王",
+    priority: "mid",
+    date: "近期",
+    category: "选手签约",
+    desc: "周赛模式正在测，如果成功可以作为新的直播内容形式。",
+    done: false
+  },
+
+  // ===== 直播间 =====
+  {
+    id: 11,
+    title: "不招外部主播 — 安全风险太大",
+    executor: "党超",
+    priority: "high",
+    date: "长期",
+    category: "直播间",
+    desc: "外部主播学完套路可能变成竞争对手。孙丹红主播用了3-4年不换，说明这个岗位极其敏感。",
+    done: false
+  },
+  {
+    id: 12,
+    title: "陈恳不用练了",
+    executor: "党超",
+    priority: "mid",
+    date: "立即",
+    category: "直播间",
+    desc: "存有异心，不练了。",
+    done: false
+  },
+  {
+    id: 13,
+    title: "邱教练安排上主播",
+    executor: "党超",
+    priority: "mid",
+    date: "近期",
+    category: "直播间",
+    desc: "邱教练想挣400，让他练球先沉淀。配合度要提高。",
+    done: false
+  },
+  {
+    id: 14,
+    title: "阿超主播培训 — 提前练作为保险",
+    executor: "党超",
+    priority: "low",
+    date: "备用",
+    category: "直播间",
+    desc: "凯哥说不需要提前练，生病时再封闭7天集训即可。但阿超自己可以练。",
+    done: false
+  },
+
+  // ===== 五条业务线 =====
+  {
+    id: 15,
+    title: "全国首家无烟台球俱乐部 — 收台费",
+    executor: "党超",
+    priority: "mid",
+    date: "5月启动",
+    category: "五条业务线",
+    desc: "预约制无烟台球俱乐部，团购59-68元/小时，TV台88元。赵金童夺冠后深圳政策有优势。",
+    done: false
+  },
+  {
+    id: 16,
+    title: "跟赵金童师傅谈公益合作",
+    executor: "老王",
+    priority: "mid",
+    date: "5月前",
+    category: "五条业务线",
+    desc: "赵金童师傅在横岗，先联合搞几场公益活动，不强联合。",
+    done: false
+  },
+  {
+    id: 17,
+    title: "全国青少年台球俱乐部",
+    executor: "党超",
+    priority: "mid",
+    date: "5月启动",
+    category: "五条业务线",
+    desc: "周六周日儿童日套餐，先做几场公益体验课。打磨已在进行中。区政府也有意向合作。",
+    done: false
+  },
+  {
+    id: 18,
+    title: "线下私教课 + 传奇班",
+    executor: "凯哥",
+    priority: "high",
+    date: "5月启动",
+    category: "五条业务线",
+    desc: "6000-7000元/月，一节课500元。凯哥在那边把模式打通，找房地产销售来搞成熟模式。",
+    done: false
+  },
+  {
+    id: 19,
+    title: "电商直播带货 — 三个直播间",
+    executor: "党超",
+    priority: "mid",
+    date: "5-6月启动",
+    category: "五条业务线",
+    desc: "1) 通类配件直播间（抄三号台球） 2) 皮尔力球杆专场 3) 热销品类专场。必须投流。",
+    done: false
+  },
+  {
+    id: 20,
+    title: "跟超哥对接拿配件货",
+    executor: "老王",
+    priority: "mid",
+    date: "近期",
+    category: "五条业务线",
+    desc: "已刷大火箭，明天对接拿货。先不提选手，建立商业关系。配件渠道要抄三号台球。",
+    done: false
+  },
+  {
+    id: 21,
+    title: "KO / PK / 巴宝莉品牌经销",
+    executor: "党超",
+    priority: "low",
+    date: "5-6月",
+    category: "五条业务线",
+    desc: "三个品牌好记好卖，可出大货。自己直播间卖 + 经销。",
+    done: false
+  },
+
+  // ===== AI部门 =====
+  {
+    id: 22,
+    title: "建立AI部门 — 用AI挣钱",
+    executor: "老王",
+    priority: "low",
+    date: "1-2个月内",
+    category: "AI部门",
+    desc: "用AI解决不同痛点。台球训练APP、AI启蒙绘本（台球圈没有）、AI做视频。10块钱买断也能卖，种下通向未来的种子。",
+    done: false
+  },
+
+  // ===== 短视频 =====
+  {
+    id: 23,
+    title: "短视频精进 — 降低投流成本",
+    executor: "老王",
+    priority: "mid",
+    date: "持续",
+    category: "短视频",
+    desc: "短视频还能做，在老王基础上再精进。投流成本直接关系到直播ROI。IP能力是最核心的。",
+    done: false
+  },
+
+  // ===== 其他 =====
+  {
+    id: 24,
+    title: "把齐总批评人方法论教给党超",
+    executor: "凯哥",
+    priority: "high",
+    date: "近期",
+    category: "管理",
+    desc: "齐总的批评三步法：1) 问你觉得怎么样（锁定证据）2) 追问为什么还这么做 3) 声音渐大让对方无地自容。凯哥会整理资料教给党超。",
+    done: false
+  },
+  {
+    id: 25,
+    title: "俊贤绩效压力拉满",
+    executor: "党超",
+    priority: "mid",
+    date: "3月",
+    category: "管理",
+    desc: "底薪1万+综合1.6-1.7万太高。工作拉满，绩效按标准给，做不出只给1万底薪。",
+    done: false
+  },
+  {
+    id: 26,
+    title: "了解各部门薪资情况",
+    executor: "党超",
+    priority: "mid",
+    date: "下月开始",
+    category: "管理",
+    desc: "凯哥开放薪资权限，让党超了解每个人成本，优化人员配置。",
+    done: false
+  },
+  {
+    id: 27,
+    title: "3月30号广州请党超老婆吃漂亮饭",
+    executor: "凯哥",
+    priority: "mid",
+    date: "3月30号",
+    category: "其他",
+    desc: "广州拍婚纱照期间，凯哥请党超老婆吃饭。公司感谢家属的支持。有仪式感的饭局。",
+    done: false
+  },
+  {
+    id: 28,
+    title: "老王右手做手术",
+    executor: "老王",
+    priority: "high",
+    date: "5月8号",
+    category: "其他",
+    desc: "四五月掌骨手术。手术后恢复3-4天，9号能好。届时左手四档+右手八档=九档。",
+    done: false
+  },
+  {
+    id: 29,
+    title: "参加党超婚礼",
+    executor: "老王",
+    priority: "mid",
+    date: "5月11号",
+    category: "其他",
+    desc: "尽量去。老王5月8号手术，9号恢复，11号应该可以。凯哥也尽量去。",
+    done: false
+  },
+  {
+    id: 30,
+    title: "下周五请党超吃饭庆祝入职四周年",
+    executor: "凯哥",
+    priority: "low",
+    date: "下周五",
+    category: "其他",
+    desc: "党超2月9号入职四周年（阴历），同天周日拍婚纱照。",
+    done: false
+  },
+  {
+    id: 31,
+    title: "月度吐槽大会 — 下次聚餐",
+    executor: "老王",
+    priority: "low",
+    date: "月度",
+    category: "其他",
+    desc: "一个月聚一次，聊老婆不能说的话、工作吐槽、人生感悟。上次喝了一斤白酒。",
+    done: false
+  }
+];
+
+// localStorage 持久化
+const STORAGE_KEY = 'billiard_tasks_v1';
+let taskStates = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+function saveStates() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(taskStates));
+}
+
+function isDone(id) {
+  return taskStates[id] === true;
+}
+
+function toggleDone(id) {
+  taskStates[id] = !isDone(id);
+  saveStates();
+  render();
+}
+
+function getExecutorClass(executor) {
+  if (executor === '老王') return 'wang';
+  if (executor === '凯哥') return 'kai';
+  if (executor === '党超') return 'chao';
+  return '';
+}
+
+function getPriorityClass(priority) {
+  if (priority === 'high') return 'high';
+  if (priority === 'mid') return 'mid';
+  return 'low';
+}
+
+function getPriorityLabel(priority) {
+  if (priority === 'high') return '紧急';
+  if (priority === 'mid') return '重要';
+  return '普通';
+}
+
+// 当前筛选状态
+let currentFilter = '全部';
+let searchQuery = '';
+
+function render() {
+  const list = document.getElementById('taskList');
+  const query = searchQuery.toLowerCase();
+
+  // 按分类分组
+  const categories = {};
+  
+  tasks.forEach((t, i) => {
+    // 筛选
+    if (currentFilter === '已完成' && !isDone(t.id)) return;
+    if (currentFilter !== '全部' && currentFilter !== '已完成') {
+      if (t.executor !== currentFilter) return;
+    }
+    // 搜索
+    if (query && !t.title.toLowerCase().includes(query) && !t.desc.toLowerCase().includes(query) && !t.category.toLowerCase().includes(query)) return;
+
+    if (!categories[t.category]) categories[t.category] = [];
+    categories[t.category].push(t);
+  });
+
+  // 统计
+  const allDone = tasks.filter(t => isDone(t.id)).length;
+  const allTotal = tasks.length;
+  const highTasks = tasks.filter(t => t.priority === 'high' && !isDone(t.id));
+  const wangTasks = tasks.filter(t => t.executor === '老王' && !isDone(t.id));
+  const kaiTasks = tasks.filter(t => t.executor === '凯哥' && !isDone(t.id));
+  const chaoTasks = tasks.filter(t => t.executor === '党超' && !isDone(t.id));
+
+  document.getElementById('totalCount').textContent = allTotal;
+  document.getElementById('highCount').textContent = highTasks.length;
+  document.getElementById('wangCount').textContent = wangTasks.length;
+  document.getElementById('kaiCount').textContent = kaiTasks.length;
+  document.getElementById('chaoCount').textContent = chaoTasks.length;
+  document.getElementById('progressText').textContent = `${allDone} / ${allTotal}`;
+  document.getElementById('progressFill').style.width = `${(allDone / allTotal * 100)}%`;
+
+  if (Object.keys(categories).length === 0) {
+    list.innerHTML = '<div class="empty-state">没有匹配的任务 🎱</div>';
+    return;
+  }
+
+  let html = '';
+  let idx = 0;
+  
+  for (const [cat, catTasks] of Object.entries(categories)) {
+    // 按优先级排序：high > mid > low
+    const priorityOrder = { high: 0, mid: 1, low: 2 };
+    catTasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+    html += `<div class="section-title">${cat}</div>`;
+    html += '<div class="task-grid">';
+
+    catTasks.forEach(t => {
+      const done = isDone(t.id);
+      const delay = idx * 30;
+      idx++;
+
+      html += `
+        <div class="task-card ${done ? 'done' : ''}" style="animation-delay:${delay}ms">
+          <div class="task-check ${done ? 'checked' : ''}" onclick="toggleDone(${t.id})"></div>
+          <div class="task-body">
+            <div class="task-header">
+              <span class="task-title">${t.title}</span>
+            </div>
+            ${t.desc ? `<div class="task-desc">${t.desc}</div>` : ''}
+            <div class="task-tags">
+              <span class="tag tag-executor ${getExecutorClass(t.executor)}">${t.executor}</span>
+              <span class="tag tag-priority ${getPriorityClass(t.priority)}">${getPriorityLabel(t.priority)}</span>
+              ${t.date ? `<span class="tag tag-date">📅 ${t.date}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+  }
+
+  list.innerHTML = html;
+}
+
+// 筛选按钮
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+// 搜索
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  render();
+});
+
+// 初始渲染
+render();
+</script>
+
+</body>
+</html>
