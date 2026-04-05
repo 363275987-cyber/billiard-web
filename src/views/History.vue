@@ -2,6 +2,7 @@
 <template>
   <div class="page">
     <div class="page-header">
+      <button class="btn-back" @click="$router.back()">←</button>
       <h1 class="page-title">📅 训练历史</h1>
     </div>
 
@@ -42,8 +43,13 @@ const store = useBilliardStore()
 
 <style scoped>
 .page { padding: 16px 12px 120px; }
-.page-header { margin-bottom: 16px; }
+.page-header { margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .page-title { font-size: 22px; font-weight: 800; color: #1a1a2e; }
+.btn-back {
+  width: 36px; height: 36px; font-size: 20px; color: #666;
+  background: rgba(255,255,255,0.9); border: none; border-radius: 50%;
+  cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex-shrink: 0;
+}
 .empty-state { text-align: center; padding: 60px 20px; }
 .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
 .empty-text { font-size: 15px; color: #b0b0b0; display: block; }
