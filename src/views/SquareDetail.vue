@@ -126,73 +126,49 @@
           <div class="quick-rate duration-btns">
             <button
               :class="{ active: paramDuration === 10 }"
-              @click="
-                paramDuration = 10
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration7"
             >
               10分钟
             </button>
             <button
               :class="{ active: paramDuration === 15 }"
-              @click="
-                paramDuration = 15
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration6"
             >
               15分钟
             </button>
             <button
               :class="{ active: paramDuration === 20 }"
-              @click="
-                paramDuration = 20
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration5"
             >
               20分钟
             </button>
             <button
               :class="{ active: paramDuration === 30 }"
-              @click="
-                paramDuration = 30
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration4"
             >
               30分钟
             </button>
             <button
               :class="{ active: paramDuration === 45 }"
-              @click="
-                paramDuration = 45
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration3"
             >
               45分钟
             </button>
             <button
               :class="{ active: paramDuration === 60 }"
-              @click="
-                paramDuration = 60
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration2"
             >
               60分钟
             </button>
             <button
               :class="{ active: paramDuration === 90 }"
-              @click="
-                paramDuration = 90
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration1"
             >
               90分钟
             </button>
             <button
               :class="{ active: paramDuration === 120 }"
-              @click="
-                paramDuration = 120
-                showCustomDuration = false
-              "
+              @click="handleClickParamduration"
             >
               120分钟
             </button>
@@ -278,6 +254,41 @@
 </template>
 
 <script setup>
+
+// Auto-generated handlers for multi-line inline events
+function handleClickParamduration() {
+  paramDuration = 120
+  showCustomDuration = false
+}
+function handleClickParamduration1() {
+  paramDuration = 90
+  showCustomDuration = false
+}
+function handleClickParamduration2() {
+  paramDuration = 60
+  showCustomDuration = false
+}
+function handleClickParamduration3() {
+  paramDuration = 45
+  showCustomDuration = false
+}
+function handleClickParamduration4() {
+  paramDuration = 30
+  showCustomDuration = false
+}
+function handleClickParamduration5() {
+  paramDuration = 20
+  showCustomDuration = false
+}
+function handleClickParamduration6() {
+  paramDuration = 15
+  showCustomDuration = false
+}
+function handleClickParamduration7() {
+  paramDuration = 10
+  showCustomDuration = false
+}
+
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBilliardStore } from '../stores/billiard'

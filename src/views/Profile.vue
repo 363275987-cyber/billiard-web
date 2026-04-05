@@ -125,10 +125,7 @@
               v-for="(av, i) in systemAvatars"
               :key="i"
               :class="{ active: regAvatar === av }"
-              @click="
-                regAvatar = av
-                customAvatarUrl = ''
-              "
+              @click="handleClickRegavatar"
             >
               <span class="avatar-emoji">{{ av }}</span>
             </div>
@@ -294,10 +291,7 @@
             v-for="(av, i) in systemAvatars"
             :key="i"
             :class="{ active: editAvatar === av && !editCustomUrl }"
-            @click="
-              editAvatar = av
-              editCustomUrl = ''
-            "
+            @click="handleClickEditavatar"
           >
             <span class="avatar-emoji">{{ av }}</span>
           </div>
@@ -339,6 +333,17 @@
 </template>
 
 <script setup>
+
+// Auto-generated handlers for multi-line inline events
+function handleClickEditavatar() {
+  editAvatar = av
+  editCustomUrl = ''
+}
+function handleClickRegavatar() {
+  regAvatar = av
+  customAvatarUrl = ''
+}
+
 import { ref, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBilliardStore } from '../stores/billiard'

@@ -1,787 +1,511 @@
-<!-- src/views/Record.vue - Keep 风格训练记录 -->
+<!-- src/views/Record.vue - v2 训练计数器 -->
 <template>
-  <div class="page">
-    <!-- 压缩中提示 -->
-    <div class="processing-hint" v-if="processing">{{ processing }}</div>
-
-    <div class="page-title-bar">
-      <span class="back-btn" @click="goBack">‹ 返回</span>
-      <span class="page-title">记录训练</span>
-      <span class="page-title-sub">{{ store.getToday() }}</span>
+  <div class="rec-page">
+    <!-- 项目选择 -->
+    <div class="rec-project">
+      <select v-model="selectedProject" class="project-select">
+        <option value="">选择训练项目</option>
+        <option v-for="p in projectOptions" :key="p" :value="p">{{ p }}</option>
+      </select>
     </div>
 
-    <!-- 训练项目 -->
-    <div class="card">
-      <div class="card-title">训练项目</div>
-      <div class="project-toggle" @click="showPicker = !showPicker">
-        <span :class="selectedProject ? 'selected' : 'placeholder'">{{
-          selectedProject || '点击选择项目'
-        }}</span>
-        <span class="arrow">›</span>
-      </div>
+    <!-- 连进大数字 -->
+    <div class="streak-area" v-if="!showSummary">
+      <div class="streak-label">连进</div>
+      <div class="streak-num" :class="{ fire: streak >= 5 }">{{ streak }}</div>
+      <div class="streak-hint" v-if="streak > 0">🔥 连进中！</div>
+    </div>
 
-      <!-- 引导去广场（下拉为空时） -->
-      <div
-        class="guide-square"
-        v-if="showPicker && store.myProjectList.length === 0"
-      >
-        <span class="guide-text">还没有收藏项目？</span>
-        <button class="btn-go-square" @click="$router.push('/square')">
-          去项目广场看看 →
+    <!-- 操作按钮 -->
+    <div class="action-area" v-if="!showSummary">
+      <button class="btn-miss" @click="addMiss">失误</button>
+      <button class="btn-pot" @click="addPot">+1</button>
+    </div>
+
+    <!-- 批量按钮 -->
+    <div class="batch-area" v-if="!showSummary">
+      <button class="btn-batch" @click="addBatch(5)">+5</button>
+      <button class="btn-batch" @click="addBatch(10)">+10</button>
+      <button class="btn-batch" @click="addBatch(15)">+15</button>
+      <button class="btn-end" @click="finishSet">结束本组</button>
+    </div>
+
+    <!-- 本组统计 -->
+    <div class="stats-bar" v-if="!showSummary">
+      <div class="stat-item"><span class="stat-val">{{ pots }}</span><span class="stat-label">进球</span></div>
+      <div class="stat-item"><span class="stat-val">{{ misses }}</span><span class="stat-label">失误</span></div>
+      <div class="stat-item"><span class="stat-val">{{ pots + misses }}</span><span class="stat-label">总杆</span></div>
+      <div class="stat-item"><span class="stat-val">{{ hitRate }}%</span><span class="stat-label">命中率</span></div>
+    </div>
+
+    <!-- 事件计时器 -->
+    <div class="card" v-if="!showSummary">
+      <div class="card-title">⏱ 事件记录</div>
+      <div class="timer-row">
+        <span class="timer-display">{{ formatTimer(timerSeconds) }}</span>
+        <button class="btn-timer" :class="timerRunning ? 'running' : ''" @click="toggleTimer">
+          {{ timerRunning ? '暂停' : '开始' }}
         </button>
+        <button class="btn-event" @click="recordEvent">{{ eventName }}</button>
       </div>
-
-      <!-- 我的项目 -->
-      <div
-        class="project-grid"
-        v-if="showPicker && store.myProjectList.length > 0"
-      >
-        <span
-          class="project-tag"
-          :class="{ active: selectedProject === item.name }"
-          v-for="item in store.myProjectList"
-          :key="item.id"
-          @click="
-            selectedProject = item.name
-            selectedProjectId = item.id
-            showPicker = false
-          "
-        >
-          {{ item.name }}
-        </span>
-      </div>
-    </div>
-
-    <!-- 命中率 -->
-    <div class="card">
-      <div class="card-title">命中率</div>
-      <div class="quick-rate">
-        <button class="rate-btn rate-low" @click="quickHit(30)">30%</button>
-        <button class="rate-btn rate-mid" @click="quickHit(50)">50%</button>
-        <button class="rate-btn rate-good" @click="quickHit(70)">70%</button>
-        <button class="rate-btn rate-great" @click="quickHit(90)">90%</button>
-      </div>
-      <div class="input-row">
-        <div class="input-group">
-          <span class="input-label">总出杆</span>
-          <input
-            type="number"
-            v-model.number="totalShots"
-            @input="calcHitRate"
-            class="input-field"
-          />
-          <span class="input-unit">杆</span>
-        </div>
-        <span class="input-divider">/</span>
-        <div class="input-group">
-          <span class="input-label">命中</span>
-          <input
-            type="number"
-            v-model.number="hits"
-            @input="calcHitRate"
-            class="input-field"
-          />
-          <span class="input-unit">杆</span>
-        </div>
-      </div>
-      <div class="hitrate-display">
-        <div
-          class="hitrate-ring"
-          :class="hitRate >= 70 ? 'good' : hitRate >= 50 ? 'mid' : 'bad'"
-        >
-          <span class="hitrate-num">{{ hitRate }}</span>
-          <span class="hitrate-percent">%</span>
+      <div class="event-log" v-if="events.length">
+        <div class="event-item" v-for="(e, i) in events" :key="i">
+          <span class="event-name">{{ e.name }}</span>
+          <span class="event-time">{{ e.interval }}</span>
         </div>
       </div>
     </div>
 
-    <!-- 训练时长 -->
-    <div class="card">
-      <div class="card-title">
-        训练时长
-        <span class="actual-tag" v-if="isActualTime">实际计时</span>
-      </div>
-      <input
-        type="range"
-        min="5"
-        max="300"
-        step="5"
-        v-model.number="duration"
-        class="slider"
-      />
-      <span class="duration-text">{{ duration }} 分钟</span>
+    <!-- 备注 -->
+    <div class="card" v-if="!showSummary">
+      <div class="card-title">📝 备注</div>
+      <textarea v-model="notes" placeholder="训练心得..." class="note-input" rows="2"></textarea>
     </div>
 
-    <!-- 媒体上传（图片+视频） -->
-    <div class="card">
-      <div class="card-title">训练留影</div>
-      <div class="media-area">
-        <!-- 已上传的图片预览 -->
-        <div class="media-grid" v-if="imagePreviews.length > 0">
-          <div
-            class="media-thumb"
-            v-for="(img, i) in imagePreviews"
-            :key="'img' + i"
-          >
-            <img :src="img.url" class="thumb-img" />
-            <span class="thumb-remove" @click="removeImage(i)">✕</span>
-          </div>
+    <!-- 本组总结 -->
+    <div class="summary-area" v-if="showSummary">
+      <div class="summary-title">📊 本组总结</div>
+      <div class="summary-project">{{ selectedProject || '未选择项目' }}</div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-val">{{ lastSet.pots }}</span>
+          <span class="summary-label">进球</span>
         </div>
-        <!-- 已上传的视频预览 -->
-        <div class="video-thumb" v-if="videoPreviewUrl">
-          <video :src="videoPreviewUrl" playsinline class="thumb-video" />
-          <span class="thumb-remove" @click="removeVideo">✕</span>
+        <div class="summary-item">
+          <span class="summary-val">{{ lastSet.misses }}</span>
+          <span class="summary-label">失误</span>
         </div>
-        <!-- 上传按钮 -->
-        <div
-          class="upload-btns"
-          v-if="imagePreviews.length < 9 && !videoPreviewUrl"
-        >
-          <div class="upload-btn" @click="pickImage">
-            <span class="upload-icon">📷</span>
-            <span class="upload-text">拍照/相册</span>
-          </div>
-          <div class="upload-btn" @click="pickVideo">
-            <span class="upload-icon">🎬</span>
-            <span class="upload-text">录视频</span>
-          </div>
+        <div class="summary-item">
+          <span class="summary-val highlight">{{ lastSet.hitRate }}%</span>
+          <span class="summary-label">命中率</span>
         </div>
-        <span class="upload-hint">图片最多9张，视频最多1个，自动压缩</span>
+        <div class="summary-item">
+          <span class="summary-val highlight">{{ lastSet.maxStreak }}</span>
+          <span class="summary-label">最长连进</span>
+        </div>
       </div>
-      <input
-        type="file"
-        ref="imageInput"
-        accept="image/*"
-        multiple
-        capture="environment"
-        @change="onImageChange"
-        style="display: none"
-      />
-      <input
-        type="file"
-        ref="videoInput"
-        accept="video/*"
-        capture="environment"
-        @change="onVideoChange"
-        style="display: none"
-      />
+      <div class="summary-actions">
+        <button class="btn-primary" @click="nextSet">下一组</button>
+        <button class="btn-secondary" @click="finishAll">结束训练</button>
+      </div>
     </div>
 
-    <!-- 训练心得 -->
-    <div class="card">
-      <div class="card-title">训练心得</div>
-      <textarea
-        v-model="note"
-        placeholder="今天感觉怎么样？有什么收获..."
-        class="note-input"
-      ></textarea>
-    </div>
-
-    <!-- 收藏 + 保存 -->
-    <div class="save-area">
-      <div class="star-row" @click="starred = !starred">
-        <span class="star-btn" :class="{ active: starred }">{{
-          starred ? '⭐ 已收藏' : '☆ 心得收藏'
-        }}</span>
+    <!-- 历史组数 -->
+    <div class="sets-history" v-if="finishedSets.length > 0 && !showSummary">
+      <div class="card-title" style="margin: 12px 0 8px;">已完成的组</div>
+      <div class="set-item" v-for="(s, i) in finishedSets" :key="i">
+        <span>第{{ i + 1 }}组</span>
+        <span>{{ s.pots }}进/{{ s.misses }}失 · {{ s.hitRate }}%</span>
       </div>
-      <button class="btn-primary" @click="saveRecord">保存记录</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useBilliardStore } from '../stores/billiard'
-import {
-  saveFile,
-  compressImage,
-  compressVideo,
-  mediaId,
-} from '../utils/mediaStore'
 
-const store = useBilliardStore()
-const route = useRoute()
 const router = useRouter()
+const store = useBilliardStore()
 
-const showPicker = ref(false)
+const defaultProjects = [
+  '中袋直线球', '五分点中袋', '远台薄切', 'K球分离练习',
+  '安全球防守', '连续围球', '九球走位', '高低杆进阶',
+  '底袋袋口球', '翻袋练习', '串球练习', '自由练习',
+]
+
+const projectOptions = computed(() => {
+  const fromStore = store.myProjectList.map(p => p.name)
+  const merged = [...new Set([...fromStore, ...defaultProjects])]
+  return merged
+})
+
 const selectedProject = ref('')
-const selectedProjectId = ref('')
-const duration = ref(60)
-const totalShots = ref(50)
-const hits = ref(0)
-const hitRate = ref(0)
-const note = ref('')
-const starred = ref(false)
-const isActualTime = ref(false)
+const pots = ref(0)
+const misses = ref(0)
+const streak = ref(0)
+const maxStreak = ref(0)
+const notes = ref('')
+const showSummary = ref(false)
+const finishedSets = ref([])
+const lastSet = ref({ pots: 0, misses: 0, hitRate: 0, maxStreak: 0 })
 
-// 媒体
-const imageInput = ref(null)
-const videoInput = ref(null)
-const imagePreviews = ref([]) // { url, mediaId, blob }
-const videoPreviewUrl = ref('')
-const videoMediaId = ref('')
-const videoCompressed = ref(false)
-const blobUrls = ref([])
-const processing = ref('')
+// Timer
+const timerSeconds = ref(0)
+const timerRunning = ref(false)
+let timerInterval = null
+const eventName = ref('分神')
+const events = ref([])
 
-// ===== 媒体处理 =====
-function pickImage() {
-  imageInput.value?.click()
-}
-function pickVideo() {
-  videoInput.value?.click()
-}
-
-async function onImageChange(e) {
-  const files = Array.from(e.target.files || [])
-  const remaining = 9 - imagePreviews.value.length
-  if (remaining <= 0) return
-  for (const file of files.slice(0, remaining)) {
-    processing.value = '图片压缩中...'
-    const compressed = await compressImage(file, 1280)
-    const id = mediaId('img')
-    const url = URL.createObjectURL(compressed)
-    blobUrls.value.push(url)
-    imagePreviews.value.push({ url, mediaId: id, blob: compressed })
-    await saveFile(id, compressed)
-  }
-  processing.value = ''
-  e.target.value = ''
-}
-
-async function onVideoChange(e) {
-  const file = (e.target.files || [])[0]
-  if (!file) return
-  // 限制 200MB
-  if (file.size > 200 * 1024 * 1024) {
-    alert('视频太大啦，请控制在 200MB 以内')
-    e.target.value = ''
-    return
-  }
-  const url = URL.createObjectURL(file)
-  blobUrls.value.push(url)
-  videoPreviewUrl.value = url
-
-  // 大于 5MB 自动压缩
-  if (file.size >= 5 * 1024 * 1024) {
-    processing.value = '视频压缩中，请稍候...'
-    const compressed = await compressVideo(file, 1280)
-    if (compressed && compressed !== file) {
-      const id = mediaId('vid')
-      videoMediaId.value = id
-      await saveFile(id, compressed)
-      videoCompressed.value = true
-      // 更新预览 URL
-      URL.revokeObjectURL(videoPreviewUrl.value)
-      const newUrl = URL.createObjectURL(compressed)
-      blobUrls.value.push(newUrl)
-      videoPreviewUrl.value = newUrl
-    } else {
-      const id = mediaId('vid')
-      videoMediaId.value = id
-      await saveFile(id, file)
-    }
-  } else {
-    const id = mediaId('vid')
-    videoMediaId.value = id
-    await saveFile(id, file)
-  }
-  processing.value = ''
-  e.target.value = ''
-}
-
-function removeImage(index) {
-  const item = imagePreviews.value[index]
-  URL.revokeObjectURL(item.url)
-  blobUrls.value = blobUrls.value.filter((u) => u !== item.url)
-  imagePreviews.value.splice(index, 1)
-}
-
-function removeVideo() {
-  if (videoPreviewUrl.value) {
-    URL.revokeObjectURL(videoPreviewUrl.value)
-    blobUrls.value = blobUrls.value.filter((u) => u !== videoPreviewUrl.value)
-  }
-  videoPreviewUrl.value = ''
-  videoMediaId.value = ''
-  videoCompressed.value = false
-}
-
-// 从 URL 参数自动选中项目和时长
-onMounted(() => {
-  const projectId = route.query.projectId
-  if (projectId) {
-    const project = store.getSquareProject(projectId)
-    if (project) {
-      selectedProject.value = project.name
-      selectedProjectId.value = project.id
-    }
-  }
-  // 从训练结束带过来的实际时长（吸附到滑块步长）
-  const durationParam = route.query.duration
-  if (durationParam) {
-    const raw = parseInt(durationParam) || 60
-    duration.value = Math.max(5, Math.min(300, Math.round(raw / 5) * 5))
-    isActualTime.value = true
-  }
-  // 从实时计数器自动填入数据
-  const shotsParam = route.query.shots
-  if (shotsParam) {
-    totalShots.value = parseInt(shotsParam) || 50
-  }
-  const hitsParam = route.query.hits
-  if (hitsParam) {
-    hits.value = parseInt(hitsParam) || 0
-    calcHitRate()
-  }
-  const hitRateParam = route.query.hitRate
-  if (hitRateParam && !hitsParam) {
-    hitRate.value = parseInt(hitRateParam) || 0
-  }
+const hitRate = computed(() => {
+  const total = pots.value + misses.value
+  return total > 0 ? Math.round((pots.value / total) * 100) : 0
 })
 
-function calcHitRate() {
-  if (totalShots.value > 0 && hits.value > totalShots.value) {
-    hits.value = totalShots.value
-  }
-  hitRate.value =
-    totalShots.value > 0 ? Math.round((hits.value / totalShots.value) * 100) : 0
+function addPot() {
+  pots.value++
+  streak.value++
+  if (streak.value > maxStreak.value) maxStreak.value = streak.value
 }
 
-function quickHit(percent) {
-  hits.value = Math.round((totalShots.value * percent) / 100)
-  if (hits.value > totalShots.value) hits.value = totalShots.value
-  calcHitRate()
+function addMiss() {
+  misses.value++
+  streak.value = 0
 }
 
-async function saveRecord() {
-  if (!selectedProject.value) {
-    alert('请选择训练项目')
-    return
+function addBatch(n) {
+  for (let i = 0; i < n; i++) {
+    pots.value++
+    streak.value++
+    if (streak.value > maxStreak.value) maxStreak.value = streak.value
   }
+}
 
-  const mediaIds = [
-    ...imagePreviews.value.map((img) => img.mediaId),
-    ...(videoMediaId.value ? [videoMediaId.value] : []),
-  ]
-
-  await store.addRecord({
-    id: Date.now().toString(),
-    project: selectedProject.value,
-    projectId: selectedProjectId.value,
-    duration: duration.value,
-    totalShots: totalShots.value,
-    hits: hits.value,
+function finishSet() {
+  if (pots.value + misses.value === 0) return
+  lastSet.value = {
+    pots: pots.value,
+    misses: misses.value,
     hitRate: hitRate.value,
-    note: note.value,
-    date: store.getToday(),
-    starred: starred.value,
-    mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
-    createdAt: new Date().toISOString(),
-  })
-
-  alert(starred.value ? '已保存并收藏心得 ⭐' : '记录成功 ✅')
-  cleanupAndGoBack()
+    maxStreak: maxStreak.value,
+  }
+  finishedSets.value.push({ ...lastSet.value })
+  showSummary.value = true
+  stopTimer()
 }
 
-// 清理 + 返回
-function cleanupAndGoBack() {
-  hits.value = 0
-  hitRate.value = 0
-  note.value = ''
-  starred.value = false
-  imagePreviews.value.forEach((img) => URL.revokeObjectURL(img.url))
-  imagePreviews.value = []
-  if (videoPreviewUrl.value) URL.revokeObjectURL(videoPreviewUrl.value)
-  videoPreviewUrl.value = ''
-  videoMediaId.value = ''
-  blobUrls.value = []
-  processing.value = ''
-  goBack()
+function nextSet() {
+  pots.value = 0
+  misses.value = 0
+  streak.value = 0
+  maxStreak.value = 0
+  showSummary.value = false
+  events.value = []
+  timerSeconds.value = 0
 }
 
-// 智能返回
-function goBack() {
-  const from = route.query.from
-  if (from === 'square') {
-    router.back()
-  } else if (from === 'training') {
-    router.push('/training')
+async function finishAll() {
+  // Save all sets as records to Supabase
+  const totalPots = finishedSets.value.reduce((s, r) => s + r.pots, 0)
+  const totalMisses = finishedSets.value.reduce((s, r) => s + r.misses, 0)
+  const totalShots = totalPots + totalMisses
+  const rate = totalShots > 0 ? Math.round((totalPots / totalShots) * 100) : 0
+  const duration = Math.max(1, Math.round(timerSeconds.value / 60))
+
+  if (store.isLoggedIn && selectedProject.value) {
+    await store.addRecord({
+      id: Date.now().toString(),
+      project: selectedProject.value,
+      duration,
+      totalShots,
+      hits: totalPots,
+      hitRate: rate,
+      note: notes.value || `完成${finishedSets.value.length}组训练`,
+      date: store.getToday(),
+      starred: false,
+      createdAt: new Date().toISOString(),
+    })
+  }
+
+  router.push('/')
+}
+
+function toggleTimer() {
+  if (timerRunning.value) {
+    stopTimer()
   } else {
-    router.push('/')
+    timerRunning.value = true
+    timerInterval = setInterval(() => { timerSeconds.value++ }, 1000)
   }
 }
 
-onUnmounted(() => {
-  blobUrls.value.forEach((url) => URL.revokeObjectURL(url))
-})
+function stopTimer() {
+  timerRunning.value = false
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null }
+}
+
+function recordEvent() {
+  events.value.push({
+    name: eventName.value,
+    interval: formatTimer(timerSeconds.value),
+  })
+}
+
+function formatTimer(sec) {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
 </script>
 
 <style scoped>
-.page {
-  padding-bottom: 140px;
-}
-.page-title-bar {
-  padding: 16px 12px;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.back-btn {
-  font-size: 22px;
-  color: #2ecc71;
-  cursor: pointer;
-  font-weight: 700;
-}
-.back-btn:active {
-  opacity: 0.7;
-}
-.page-title {
-  font-size: 22px;
-  font-weight: 800;
-  color: #1a1a2e;
-}
-.page-title-sub {
-  font-size: 13px;
-  color: #b0b0b0;
-  margin-left: auto;
-}
-.actual-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  background: rgba(46, 204, 113, 0.12);
-  color: #27ae60;
-  border-radius: 8px;
-  font-weight: 600;
-  margin-left: 6px;
+.rec-page {
+  padding: 16px 12px 24px;
+  min-height: 100vh;
 }
 
-.picker-label {
-  font-size: 12px;
-  color: #b0b0b0;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.project-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.project-toggle .selected {
+/* Project select */
+.project-select {
+  width: 100%;
+  padding: 14px 16px;
   font-size: 16px;
   font-weight: 600;
   color: #1a1a2e;
-}
-.project-toggle .placeholder {
-  font-size: 14px;
-  color: #ccc;
-}
-.arrow {
-  font-size: 16px;
-  color: #ccc;
-}
-
-.guide-square {
-  text-align: center;
-  padding: 16px 0 8px;
-}
-.guide-text {
-  display: block;
-  font-size: 13px;
-  color: #b0b0b0;
-  margin-bottom: 8px;
-}
-.btn-go-square {
-  padding: 8px 20px;
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
-  color: #fff;
-  border: none;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.project-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.project-tag {
-  padding: 8px 14px;
-  background: #f5f5f5;
-  border-radius: 16px;
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.project-tag.active {
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3);
-}
-
-.quick-rate {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.rate-btn {
-  flex: 1;
-  text-align: center;
-  padding: 10px 0;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-}
-.rate-low {
-  background: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
-}
-.rate-mid {
-  background: rgba(255, 107, 53, 0.1);
-  color: #ff6b35;
-}
-.rate-good {
-  background: rgba(46, 204, 113, 0.1);
-  color: #2ecc71;
-}
-.rate-great {
-  background: rgba(52, 152, 219, 0.1);
-  color: #3498db;
-}
-
-.input-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-.input-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.input-label {
-  font-size: 14px;
-  color: #999;
-}
-.input-field {
-  width: 60px;
-  text-align: center;
-  font-size: 20px;
-  font-weight: 800;
-  color: #1a1a2e;
-  border: none;
-  border-bottom: 2px solid #2ecc71;
-  background: transparent;
-  padding: 4px 0;
+  background: #fff;
+  border: 2px solid #e8e8e8;
+  border-radius: 12px;
   outline: none;
-}
-.input-unit {
-  font-size: 13px;
-  color: #b0b0b0;
-}
-.input-divider {
-  font-size: 18px;
-  color: #ddd;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23b0b0b0' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
 }
 
-.hitrate-display {
-  display: flex;
-  justify-content: center;
-  margin-top: 18px;
+/* Streak */
+.streak-area {
+  text-align: center;
+  padding: 24px 0 16px;
 }
-.hitrate-ring {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 4px solid #2ecc71;
-  transition: all 0.3s;
+.streak-label {
+  font-size: 14px;
+  color: #b0b0b0;
+  font-weight: 600;
 }
-.hitrate-ring.good {
-  border-color: #2ecc71;
-  background: rgba(46, 204, 113, 0.06);
-}
-.hitrate-ring.mid {
-  border-color: #ff6b35;
-  background: rgba(255, 107, 53, 0.06);
-}
-.hitrate-ring.bad {
-  border-color: #e74c3c;
-  background: rgba(231, 76, 60, 0.06);
-}
-.hitrate-num {
-  font-size: 26px;
-  font-weight: 800;
+.streak-num {
+  font-size: 96px;
+  font-weight: 900;
   color: #1a1a2e;
   line-height: 1;
+  margin: 8px 0;
+  transition: transform 0.15s;
 }
-.hitrate-percent {
+.streak-num.fire {
+  color: #2ecc71;
+  text-shadow: 0 0 30px rgba(46, 204, 113, 0.3);
+}
+.streak-hint {
+  font-size: 15px;
+  color: #2ecc71;
+  font-weight: 600;
+}
+
+/* Action buttons */
+.action-area {
+  display: flex;
+  gap: 16px;
+  margin: 0 12px 16px;
+}
+.btn-pot {
+  flex: 2;
+  padding: 28px 0;
+  font-size: 32px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+  transition: transform 0.1s;
+}
+.btn-pot:active { transform: scale(0.96); }
+.btn-miss {
+  flex: 1;
+  padding: 28px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(231, 76, 60, 0.3);
+  transition: transform 0.1s;
+}
+.btn-miss:active { transform: scale(0.96); }
+
+/* Batch buttons */
+.batch-area {
+  display: flex;
+  gap: 10px;
+  margin: 0 12px 16px;
+}
+.btn-batch {
+  flex: 1;
+  padding: 14px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #27ae60;
+  background: rgba(46, 204, 113, 0.1);
+  border: 2px solid rgba(46, 204, 113, 0.3);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.btn-batch:active { background: rgba(46, 204, 113, 0.2); }
+.btn-end {
+  flex: 1.2;
+  padding: 14px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+}
+.btn-end:active { background: #e0e0e0; }
+
+/* Stats bar */
+.stats-bar {
+  display: flex;
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  margin: 0 12px 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.stat-item {
+  flex: 1;
+  text-align: center;
+}
+.stat-val {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  color: #1a1a2e;
+}
+.stat-label {
+  display: block;
   font-size: 11px;
   color: #b0b0b0;
+  margin-top: 2px;
 }
 
-.slider {
-  width: 100%;
-  accent-color: #2ecc71;
-  margin: 4px 0;
+/* Timer */
+.timer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.duration-text {
-  display: block;
-  text-align: center;
-  font-size: 15px;
-  font-weight: 700;
-  color: #2ecc71;
-  margin-top: 8px;
+.timer-display {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
 }
+.btn-timer {
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #3498db;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.btn-timer.running { background: #e67e22; }
+.btn-event {
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.event-log { margin-top: 8px; }
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+.event-name { color: #e74c3c; font-weight: 500; }
+.event-time { color: #666; font-variant-numeric: tabular-nums; }
 
+/* Notes */
 .note-input {
   width: 100%;
-  min-height: 80px;
+  min-height: 60px;
   font-size: 14px;
   line-height: 1.6;
   color: #333;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px;
   border: none;
   outline: none;
   resize: vertical;
 }
 
-/* 媒体上传 */
-.media-area {
-  margin-top: 8px;
+/* Summary */
+.summary-area {
+  text-align: center;
+  padding: 24px 16px;
 }
-.media-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.media-thumb,
-.video-thumb {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 10px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.thumb-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.thumb-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 10px;
-}
-.thumb-remove {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 20px;
-  height: 20px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  cursor: pointer;
-  line-height: 1;
-}
-.upload-btns {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.upload-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 14px 0;
-  background: #f8f9fa;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.upload-btn:active {
-  background: #f0f0f0;
-}
-.upload-icon {
-  font-size: 24px;
+.summary-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a1a2e;
   margin-bottom: 4px;
 }
-.upload-text {
-  font-size: 12px;
-  color: #666;
-  font-weight: 500;
-}
-.upload-hint {
-  display: block;
-  font-size: 11px;
-  color: #ccc;
-  margin-top: 4px;
-}
-.processing-hint {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 14px 24px;
-  border-radius: 10px;
-  font-size: 14px;
-  z-index: 999;
-  pointer-events: none;
-}
-
-.save-area {
-  position: fixed;
-  bottom: 60px;
-  left: 0;
-  right: 0;
-  padding: 10px 24px;
-  background: #fff;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
-  max-width: 480px;
-  margin: 0 auto;
-}
-.star-row {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-.star-btn {
+.summary-project {
   font-size: 14px;
   color: #b0b0b0;
+  margin-bottom: 20px;
 }
-.star-btn.active {
-  color: #f39c12;
-  font-weight: 600;
+.summary-grid {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.summary-item {
+  flex: 1;
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.summary-val {
+  display: block;
+  font-size: 26px;
+  font-weight: 800;
+  color: #1a1a2e;
+}
+.summary-val.highlight {
+  color: #2ecc71;
+}
+.summary-label {
+  display: block;
+  font-size: 11px;
+  color: #b0b0b0;
+  margin-top: 2px;
+}
+.summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.summary-actions .btn-secondary {
+  margin-top: 0;
+}
+
+/* Sets history */
+.sets-history { margin-bottom: 20px; }
+.set-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #666;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 </style>

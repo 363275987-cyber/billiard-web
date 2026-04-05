@@ -7,13 +7,13 @@
         <span class="tab-icon">🏠</span>
         <span>首页</span>
       </router-link>
-      <router-link to="/training" class="tab-item" active-class="active">
-        <span class="tab-icon">📋</span>
-        <span>训练</span>
+      <router-link to="/record" class="tab-item" active-class="active">
+        <span class="tab-icon">🎱</span>
+        <span>记录</span>
       </router-link>
-      <router-link to="/stats" class="tab-item" active-class="active">
-        <span class="tab-icon">📊</span>
-        <span>统计</span>
+      <router-link to="/history" class="tab-item" active-class="active">
+        <span class="tab-icon">📅</span>
+        <span>历史</span>
       </router-link>
       <router-link to="/profile" class="tab-item" active-class="active">
         <span class="tab-icon">👤</span>
@@ -34,15 +34,7 @@ const store = useBilliardStore()
 onMounted(() => {
   store.init()
 })
-const hideOn = [
-  '/detail',
-  '/record',
-  '/square-detail',
-  '/my-projects',
-  '/my-starred',
-  '/publish',
-  '/plan',
-]
+const hideOn = ['/record', '/history']
 const showTabBar = computed(() => !hideOn.some((p) => route.path.startsWith(p)))
 </script>
 

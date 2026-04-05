@@ -206,19 +206,13 @@
           <div class="modal-buttons">
             <button
               class="btn-secondary"
-              @click="
-                showGroupResult = false
-                resetForNext()
-              "
+              @click="handleClickShowgroupresult1"
             >
               再来一组
             </button>
             <button
               class="btn-primary"
-              @click="
-                showGroupResult = false
-                showSessionSummary = true
-              "
+              @click="handleClickShowgroupresult"
             >
               结束训练
             </button>
@@ -271,10 +265,7 @@
           <button
             class="btn-primary"
             style="margin-top: 16px"
-            @click="
-              showSessionSummary = false
-              finishTraining()
-            "
+            @click="handleClickShowsessionsummary"
           >
             确认保存
           </button>
@@ -285,6 +276,21 @@
 </template>
 
 <script setup>
+
+// Auto-generated handlers for multi-line inline events
+function handleClickShowsessionsummary() {
+  showSessionSummary = false
+  finishTraining()
+}
+function handleClickShowgroupresult() {
+  showGroupResult = false
+  showSessionSummary = true
+}
+function handleClickShowgroupresult1() {
+  showGroupResult = false
+  resetForNext()
+}
+
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useBilliardStore } from '../stores/billiard'
